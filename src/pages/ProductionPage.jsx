@@ -1,10 +1,31 @@
 import React, { useState } from 'react';
-import { Factory, Play, CheckCircle2, Clock, Flame, AlertCircle, ArrowRight, Activity, RotateCw } from 'lucide-react';
+import {
+  Factory, Play, CheckCircle2, Clock, Flame, AlertCircle,
+  ArrowRight, Activity, RotateCw, Plus, Edit3, Trash2, X, AlertTriangle
+} from 'lucide-react';
 import { PRODUCTION_BATCHES, PRODUCTION_STAGES, PRODUCTION_STAGE_LOGS } from '../data/mockData';
 
 export default function ProductionPage() {
-  const [selectedBatch, setSelectedBatch] = useState(PRODUCTION_BATCHES[0]);
   const [batches, setBatches] = useState(PRODUCTION_BATCHES);
+  const [selectedBatch, setSelectedBatch] = useState(PRODUCTION_BATCHES[0]);
+
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const [batchForm, setBatchForm] = useState({
+    prod_date: new Date().toISOString().split('T')[0],
+    input_qty: 1600,
+    wastage_qty: 35,
+    batch_status: 'In Progress'
+  });
 
   const stageLogs = PRODUCTION_STAGE_LOGS.filter(log => log.batch_id === selectedBatch.batch_id);
 
@@ -15,10 +36,53 @@ export default function ProductionPage() {
     { id: 'DM-01', name: 'Vibro Fluid Bed Dryer', stage: 'Drying', status: 'Ready', inletTemp: '125°C', exhaust: '88°C' },
   ];
 
+  const handleAddBatch = (e) => {
+    e.preventDefault();
+    const newId = batches.length > 0 ? Math.max(...batches.map(b => b.batch_id)) + 1 : 1;
+    const newBatch = {
+      batch_id: newId,
+      prod_date: batchForm.prod_date,
+      input_qty: parseFloat(batchForm.input_qty) || 1200,
+      wastage_qty: parseFloat(batchForm.wastage_qty) || 25,
+      batch_status: batchForm.batch_status
+    };
+    const updated = [newBatch, ...batches];
+    setBatches(updated);
+    setSelectedBatch(newBatch);
+    setShowAddModal(false);
+    showNotification(`New Production Batch #${newId} started successfully!`);
+  };
+
+  const handleUpdateBatch = (e) => {
+    e.preventDefault();
+    const updatedBatch = {
+      ...selectedBatch,
+      prod_date: batchForm.prod_date,
+      input_qty: parseFloat(batchForm.input_qty) || 1200,
+      wastage_qty: parseFloat(batchForm.wastage_qty) || 0,
+      batch_status: batchForm.batch_status
+    };
+    const updated = batches.map(b => b.batch_id === selectedBatch.batch_id ? updatedBatch : b);
+    setBatches(updated);
+    setSelectedBatch(updatedBatch);
+    setShowEditModal(false);
+    showNotification(`Production Batch #${selectedBatch.batch_id} updated successfully!`);
+  };
+
+  const handleDeleteBatch = () => {
+    const updated = batches.filter(b => b.batch_id !== selectedBatch.batch_id);
+    setBatches(updated);
+    if (updated.length > 0) {
+      setSelectedBatch(updated[0]);
+    }
+    setShowDeleteModal(false);
+    showNotification(`Production Batch #${selectedBatch.batch_id} deleted.`);
+  };
+
   return (
     <div className="page-container">
       {/* Top Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <div>
           <h1 className="page-title flex items-center gap-2">
             <Factory className="text-emerald-500" size={26} />
@@ -26,33 +90,78 @@ export default function ProductionPage() {
           </h1>
           <p className="text-muted text-sm">Multi-stage Ceylon black tea processing, moisture loss telemetry, and machine status</p>
         </div>
-        <button className="btn btn-primary">
-          <Play size={16} />
-          Start New Batch
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            className="btn btn-primary flex items-center gap-2"
+            onClick={() => {
+              setBatchForm({
+                prod_date: new Date().toISOString().split('T')[0],
+                input_qty: 1500,
+                wastage_qty: 30,
+                batch_status: 'In Progress'
+              });
+              setShowAddModal(true);
+            }}
+          >
+            <Play size={16} />
+            Start New Batch
+          </button>
+        </div>
       </div>
+
+      {notification && (
+        <div className="alert alert-success bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 p-4 rounded-lg mb-6 flex items-center gap-2">
+          <CheckCircle2 size={18} />
+          <span>{notification}</span>
+        </div>
+      )}
 
       {/* Batch Selector Pills */}
       <div className="content-card mb-6 p-4">
-        <div className="flex items-center gap-3 overflow-x-auto">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Select Batch:</span>
-          {batches.map(b => (
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="batch-selector-wrap">
+            <span className="batch-selector-label">Select Batch:</span>
+            {batches.map(b => (
+              <button
+                key={b.batch_id}
+                type="button"
+                onClick={() => setSelectedBatch(b)}
+                className={`batch-pill ${selectedBatch.batch_id === b.batch_id ? 'active' : ''}`}
+              >
+                <span className="batch-title">Batch #{b.batch_id}</span>
+                <span className="batch-date">({b.prod_date})</span>
+                <span className={`batch-status-badge ${b.batch_status === 'In Progress' ? 'batch-status-progress' : 'batch-status-completed'}`}>
+                  {b.batch_status}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Edit / Delete active batch buttons */}
+          <div className="flex items-center gap-2">
             <button
-              key={b.batch_id}
-              onClick={() => setSelectedBatch(b)}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
-                selectedBatch.batch_id === b.batch_id
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
+              className="btn btn-sm btn-secondary flex items-center gap-1.5"
+              onClick={() => {
+                setBatchForm({
+                  prod_date: selectedBatch.prod_date,
+                  input_qty: selectedBatch.input_qty,
+                  wastage_qty: selectedBatch.wastage_qty,
+                  batch_status: selectedBatch.batch_status
+                });
+                setShowEditModal(true);
+              }}
             >
-              <span className="font-bold">Batch #{b.batch_id}</span>
-              <span className="text-[11px] opacity-80">({b.prod_date})</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${b.batch_status === 'In Progress' ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-400/20 text-emerald-300'}`}>
-                {b.batch_status}
-              </span>
+              <Edit3 size={14} />
+              Edit Batch #{selectedBatch.batch_id}
             </button>
-          ))}
+            <button
+              className="btn btn-sm btn-secondary-danger flex items-center gap-1.5"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              <Trash2 size={14} />
+              Delete Batch
+            </button>
+          </div>
         </div>
       </div>
 
@@ -101,40 +210,42 @@ export default function ProductionPage() {
         </div>
       </div>
 
-      {/* Production Pipeline Progress Visualizer */}
+      {/* Processing Stages Stepper */}
       <div className="content-card mb-6">
-        <h2 className="card-title text-base font-semibold mb-4">Batch #{selectedBatch.batch_id} Processing Pipeline</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {PRODUCTION_STAGES.map((s, idx) => {
-            const log = stageLogs.find(l => l.stage_id === s.stage_id);
-            const isCompleted = !!log && (selectedBatch.batch_status === 'Completed' || s.stage_id < 3);
-            const isCurrent = selectedBatch.batch_status === 'In Progress' && s.stage_id === 3;
+        <div className="card-header flex justify-between items-center mb-6">
+          <h2 className="card-title text-base font-semibold">5-Stage Sequential Production Timeline</h2>
+          <span className="text-xs text-muted">Batch #{selectedBatch.batch_id} Processing Log</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {PRODUCTION_STAGES.map((stage, idx) => {
+            const log = stageLogs.find(l => l.stage_id === stage.stage_id);
+            const isCompleted = log && log.output_weight > 0;
+            const isInProgress = !isCompleted && idx === stageLogs.length;
 
             return (
               <div
-                key={s.stage_id}
-                className={`p-4 rounded-xl border transition-all ${
-                  isCurrent
-                    ? 'bg-amber-950/30 border-amber-500/50 shadow-lg shadow-amber-950/40'
-                    : isCompleted
-                    ? 'bg-emerald-950/20 border-emerald-500/40'
-                    : 'bg-slate-900/40 border-slate-800 opacity-60'
+                key={stage.stage_id}
+                className={`stage-card ${
+                  isCompleted
+                    ? 'stage-card-completed'
+                    : isInProgress
+                    ? 'stage-card-progress'
+                    : 'stage-card-pending'
                 }`}
               >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-                    STAGE 0{s.stage_id}
-                  </span>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs font-bold text-muted">STAGE 0{stage.stage_no}</span>
                   {isCompleted ? (
                     <CheckCircle2 size={16} className="text-emerald-400" />
-                  ) : isCurrent ? (
+                  ) : isInProgress ? (
                     <RotateCw size={16} className="text-amber-400 animate-spin" />
                   ) : (
-                    <Clock size={16} className="text-slate-600" />
+                    <Clock size={16} className="text-slate-500" />
                   )}
                 </div>
 
-                <div className="font-semibold text-sm text-slate-200 mb-1">{s.stage_name}</div>
+                <div className="font-semibold text-slate-100 text-sm mb-2">{stage.stage_name}</div>
 
                 {log ? (
                   <div className="text-xs space-y-1 text-muted">
@@ -161,7 +272,7 @@ export default function ProductionPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {machines.map(m => (
-            <div key={m.id} className="p-4 rounded-lg bg-slate-800/60 border border-slate-700/60">
+            <div key={m.id} className="telemetry-card">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-mono text-xs text-emerald-400 font-bold">{m.id}</span>
                 <span className={`status-badge ${m.status === 'Running' || m.status === 'Active' ? 'status-badge-success' : 'status-badge-neutral'}`}>
@@ -180,6 +291,173 @@ export default function ProductionPage() {
           ))}
         </div>
       </div>
+
+      {/* Add Batch Modal */}
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-content max-w-md">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+              <h3 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                <Play size={20} /> Start New Production Batch
+              </h3>
+              <button className="text-slate-400 hover:text-white" onClick={() => setShowAddModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddBatch} className="space-y-4">
+              <div>
+                <label className="block text-xs text-muted mb-1">Production Date</label>
+                <input
+                  type="date"
+                  className="input-field w-full"
+                  value={batchForm.prod_date}
+                  onChange={(e) => setBatchForm({ ...batchForm, prod_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted mb-1">Leaf Input (kg)</label>
+                  <input
+                    type="number"
+                    min="100"
+                    step="1"
+                    className="input-field w-full font-mono"
+                    value={batchForm.input_qty}
+                    onChange={(e) => setBatchForm({ ...batchForm, input_qty: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1">Est. Wastage (kg)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="input-field w-full font-mono"
+                    value={batchForm.wastage_qty}
+                    onChange={(e) => setBatchForm({ ...batchForm, wastage_qty: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Initial Status</label>
+                <select
+                  className="select-field w-full"
+                  value={batchForm.batch_status}
+                  onChange={(e) => setBatchForm({ ...batchForm, batch_status: e.target.value })}
+                >
+                  <option value="In Progress">In Progress (Loading to Withering)</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-800">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Launch Batch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Batch Modal */}
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content max-w-md">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+              <h3 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                <Edit3 size={20} /> Update Batch #{selectedBatch.batch_id}
+              </h3>
+              <button className="text-slate-400 hover:text-white" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateBatch} className="space-y-4">
+              <div>
+                <label className="block text-xs text-muted mb-1">Production Date</label>
+                <input
+                  type="date"
+                  className="input-field w-full"
+                  value={batchForm.prod_date}
+                  onChange={(e) => setBatchForm({ ...batchForm, prod_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted mb-1">Leaf Input (kg)</label>
+                  <input
+                    type="number"
+                    min="100"
+                    step="1"
+                    className="input-field w-full font-mono"
+                    value={batchForm.input_qty}
+                    onChange={(e) => setBatchForm({ ...batchForm, input_qty: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted mb-1">Wastage (kg)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="input-field w-full font-mono"
+                    value={batchForm.wastage_qty}
+                    onChange={(e) => setBatchForm({ ...batchForm, wastage_qty: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Status</label>
+                <select
+                  className="select-field w-full"
+                  value={batchForm.batch_status}
+                  onChange={(e) => setBatchForm({ ...batchForm, batch_status: e.target.value })}
+                >
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-800">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Batch Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content max-w-sm">
+            <div className="flex items-center gap-3 text-red-400 mb-3">
+              <AlertTriangle size={24} />
+              <h3 className="text-lg font-bold text-white">Delete Batch #{selectedBatch.batch_id}</h3>
+            </div>
+            <p className="text-sm text-slate-300 mb-4">
+              Are you sure you want to remove <strong className="text-white">Batch #{selectedBatch.batch_id}</strong> from the factory ledger?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-secondary text-red-400 border border-red-500" onClick={handleDeleteBatch}>
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
