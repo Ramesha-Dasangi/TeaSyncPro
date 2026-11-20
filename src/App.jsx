@@ -18,6 +18,7 @@ import DryingPage from './pages/DryingPage';
 import SupplierProfilePage from './pages/SupplierProfilePage';
 import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
 import PackagingPage from './pages/PackagingPage';
+import FinancePage from './pages/FinancePage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -110,7 +111,7 @@ function App() {
       case 'employees':
         return <PlaceholderPage title="Employee Management" description="Factory workforce, shift allocations, and attendance records." />;
       case 'finance':
-        return <PlaceholderPage title="Finance & Payments" description="Supplier payments, daily leaf rate adjustments, and accounts." />;
+        return <FinancePage user={user} onNavigate={setCurrentPage} />;
       case 'settings':
         return <PlaceholderPage title="System Settings" description="Factory configuration, estate details, and account preferences." />;
       default:
