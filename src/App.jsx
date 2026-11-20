@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -11,6 +11,10 @@ import ProductionPage from './pages/ProductionPage';
 import GradingPage from './pages/GradingPage';
 import InventoryPage from './pages/InventoryPage';
 import PlaceholderPage from './pages/PlaceholderPage';
+import WitheringPage from './pages/WitheringPage';
+import RollingPage from './pages/RollingPage';
+import AerationPage from './pages/AerationPage';
+import DryingPage from './pages/DryingPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -18,6 +22,18 @@ function App() {
   const [view, setView] = useState('landing');
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('teasync_theme') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('teasync_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // set landing page based on assigned user role
   const handleLogin = (loggedInUser) => {
@@ -25,10 +41,10 @@ function App() {
     const roleDefaults = {
       [ROLES.ADMIN]: 'dashboard',
       [ROLES.FACTORY_MANAGER]: 'dashboard',
-      [ROLES.WITHERING_OFFICER]: 'production',
-      [ROLES.ROLLING_OFFICER]: 'production',
-      [ROLES.AERATION_OFFICER]: 'production',
-      [ROLES.DRYING_OFFICER]: 'production',
+      [ROLES.WITHERING_OFFICER]: 'withering',
+      [ROLES.ROLLING_OFFICER]: 'rolling',
+      [ROLES.AERATION_OFFICER]: 'aeration',
+      [ROLES.DRYING_OFFICER]: 'drying',
       [ROLES.GRADING_OFFICER]: 'grading',
       [ROLES.PACKAGING_OFFICER]: 'grading',
       [ROLES.INVENTORY_OFFICER]: 'inventory',
@@ -65,7 +81,15 @@ function App() {
       case 'reports':
         return <ReportsPage />;
       case 'collection':
-        return <CollectionPage />;
+        return <CollectionPage user={user} />;
+      case 'withering':
+        return <WitheringPage user={user} onNavigate={setCurrentPage} />;
+      case 'rolling':
+        return <RollingPage user={user} onNavigate={setCurrentPage} />;
+      case 'aeration':
+        return <AerationPage user={user} onNavigate={setCurrentPage} />;
+      case 'drying':
+        return <DryingPage user={user} onNavigate={setCurrentPage} />;
       case 'production':
         return <ProductionPage />;
       case 'grading':
@@ -96,7 +120,12 @@ function App() {
       />
       <div className="main-area">
         {/* top navigation bar */}
-        <TopHeader currentPage={currentPage} user={user} />
+        <TopHeader
+          currentPage={currentPage}
+          user={user}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
         {/* page content container */}
         <main className="page-content">
           {renderPage()}

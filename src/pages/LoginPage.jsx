@@ -7,6 +7,7 @@ const ROLE_CREDENTIALS = [
   { role: ROLES.FACTORY_MANAGER, username: 'manager01', password: 'pass123', display: 'Factory Manager' },
   { role: ROLES.WITHERING_OFFICER, username: 'wither01', password: 'pass123', display: 'Withering Officer' },
   { role: ROLES.ROLLING_OFFICER, username: 'rolling01', password: 'pass123', display: 'Rolling Officer' },
+  { role: ROLES.AERATION_OFFICER, username: 'aeration01', password: 'pass123', display: 'Aeration Officer' },
   { role: ROLES.DRYING_OFFICER, username: 'drying01', password: 'pass123', display: 'Drying Officer' },
   { role: ROLES.GRADING_OFFICER, username: 'grading01', password: 'pass123', display: 'Grading Officer' },
   { role: ROLES.FINANCE_OFFICER, username: 'finance01', password: 'pass123', display: 'Finance Officer' },
