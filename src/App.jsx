@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -11,6 +11,8 @@ import ProductionPage from './pages/ProductionPage';
 import GradingPage from './pages/GradingPage';
 import InventoryPage from './pages/InventoryPage';
 import PlaceholderPage from './pages/PlaceholderPage';
+import SupplierProfilePage from './pages/SupplierProfilePage';
+import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -18,6 +20,18 @@ function App() {
   const [view, setView] = useState('landing');
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('teasync_theme') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('teasync_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // set landing page based on assigned user role
   const handleLogin = (loggedInUser) => {
@@ -65,7 +79,11 @@ function App() {
       case 'reports':
         return <ReportsPage />;
       case 'collection':
-        return <CollectionPage />;
+        return <CollectionPage user={user} />;
+      case 'supplier_profile':
+        return <SupplierProfilePage user={user} onLogout={handleLogout} />;
+      case 'supplier_payments':
+        return <SupplierPaymentsPage user={user} />;
       case 'production':
         return <ProductionPage />;
       case 'grading':
@@ -96,7 +114,12 @@ function App() {
       />
       <div className="main-area">
         {/* top navigation bar */}
-        <TopHeader currentPage={currentPage} user={user} />
+        <TopHeader
+          currentPage={currentPage}
+          user={user}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
         {/* page content container */}
         <main className="page-content">
           {renderPage()}
