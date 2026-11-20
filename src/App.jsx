@@ -17,6 +17,7 @@ import AerationPage from './pages/AerationPage';
 import DryingPage from './pages/DryingPage';
 import SupplierProfilePage from './pages/SupplierProfilePage';
 import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
+import PackagingPage from './pages/PackagingPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -48,7 +49,7 @@ function App() {
       [ROLES.AERATION_OFFICER]: 'aeration',
       [ROLES.DRYING_OFFICER]: 'drying',
       [ROLES.GRADING_OFFICER]: 'grading',
-      [ROLES.PACKAGING_OFFICER]: 'grading',
+      [ROLES.PACKAGING_OFFICER]: 'packaging',
       [ROLES.INVENTORY_OFFICER]: 'inventory',
       [ROLES.FINANCE_OFFICER]: 'finance',
       [ROLES.COLLECTION_OFFICER]: 'collection',
@@ -100,6 +101,8 @@ function App() {
         return <ProductionPage />;
       case 'grading':
         return <GradingPage />;
+      case 'packaging':
+        return <PackagingPage user={user} onNavigate={setCurrentPage} />;
       case 'inventory':
         return <InventoryPage />;
       case 'suppliers':
