@@ -30,6 +30,7 @@ const getNavItems = (role) => {
     { key: 'employees', label: 'Employees', icon: Users, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER] },
     { key: 'finance', label: 'Finance & Payments', icon: DollarSign, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER] },
     { key: 'reports', label: 'Reports', icon: FileText, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER, ROLES.GRADING_OFFICER] },
+    { key: 'admin', label: 'Administration', icon: ShieldCheck, roles: [ROLES.ADMIN] },
     { key: 'settings', label: 'Settings', icon: Settings, roles: [ROLES.ADMIN] },
   ];
   return allItems.filter(item => item.roles.includes(role));

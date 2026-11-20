@@ -19,6 +19,7 @@ import SupplierProfilePage from './pages/SupplierProfilePage';
 import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
 import PackagingPage from './pages/PackagingPage';
 import FinancePage from './pages/FinancePage';
+import AdminPage from './pages/AdminPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -106,6 +107,8 @@ function App() {
         return <PackagingPage user={user} onNavigate={setCurrentPage} />;
       case 'inventory':
         return <InventoryPage />;
+      case 'admin':
+        return <AdminPage user={user} onNavigate={setCurrentPage} />;
       case 'suppliers':
         return <PlaceholderPage title="Supplier Management" description="Supplier profiles, registration, and leaf supply records." />;
       case 'employees':
