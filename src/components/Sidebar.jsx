@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, FileText, LogOut, Leaf, Factory,
-  ClipboardList, Truck, Users, Settings, DollarSign, Package, ShieldCheck
+  ClipboardList, Truck, Users, Settings, DollarSign, Package, ShieldCheck,
+  Wind, RotateCw, Activity, Flame
 } from 'lucide-react';
 import { ROLES } from '../data/mockData';
 
 const getNavItems = (role) => {
   const allItems = [
     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.INVENTORY_OFFICER] },
+    { key: 'aeration', label: 'Aeration Records', icon: Activity, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.AERATION_OFFICER] },
+    { key: 'rolling', label: 'Rolling Records', icon: RotateCw, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.ROLLING_OFFICER, ROLES.AERATION_OFFICER] },
+    { key: 'withering', label: 'Withering Records', icon: Wind, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.WITHERING_OFFICER, ROLES.ROLLING_OFFICER] },
+    { key: 'drying', label: 'Drying Records', icon: Flame, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.DRYING_OFFICER] },
     { key: 'collection', label: 'Leaf Collection', icon: Leaf, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.COLLECTION_OFFICER, ROLES.SUPPLIER] },
     { key: 'production', label: 'Production Batches', icon: Factory, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.WITHERING_OFFICER, ROLES.ROLLING_OFFICER, ROLES.AERATION_OFFICER, ROLES.DRYING_OFFICER] },
     { key: 'grading', label: 'Grading & Packaging', icon: Package, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.GRADING_OFFICER, ROLES.PACKAGING_OFFICER] },
