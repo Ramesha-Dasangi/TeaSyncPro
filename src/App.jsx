@@ -15,6 +15,8 @@ import WitheringPage from './pages/WitheringPage';
 import RollingPage from './pages/RollingPage';
 import AerationPage from './pages/AerationPage';
 import DryingPage from './pages/DryingPage';
+import SupplierProfilePage from './pages/SupplierProfilePage';
+import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -90,6 +92,10 @@ function App() {
         return <AerationPage user={user} onNavigate={setCurrentPage} />;
       case 'drying':
         return <DryingPage user={user} onNavigate={setCurrentPage} />;
+      case 'supplier_profile':
+        return <SupplierProfilePage user={user} onLogout={handleLogout} />;
+      case 'supplier_payments':
+        return <SupplierPaymentsPage user={user} />;
       case 'production':
         return <ProductionPage />;
       case 'grading':
