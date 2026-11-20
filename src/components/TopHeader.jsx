@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, RefreshCw } from 'lucide-react';
+import { Bell, RefreshCw, Sun, Moon } from 'lucide-react';
 
 const PAGE_TITLES = {
   dashboard: { title: 'Dashboard', subtitle: 'Estate-wide operations overview' },
@@ -11,10 +11,12 @@ const PAGE_TITLES = {
   employees: { title: 'Employees', subtitle: 'Staff management & attendance' },
   finance: { title: 'Finance & Payments', subtitle: 'Payment processing & leaf rates' },
   reports: { title: 'Reports & Analytics', subtitle: 'Generate, filter & export reports' },
+  supplier_profile: { title: 'My Supplier Profile', subtitle: 'Estate membership, contact details & banking' },
+  supplier_payments: { title: 'My Payment History', subtitle: 'Verified leaf supply vouchers & settlement status' },
   settings: { title: 'Settings', subtitle: 'System configuration' },
 };
 
-export default function TopHeader({ currentPage, user }) {
+export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
   const page = PAGE_TITLES[currentPage] || PAGE_TITLES.dashboard;
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -27,6 +29,26 @@ export default function TopHeader({ currentPage, user }) {
         <p>{page.subtitle} &nbsp;·&nbsp; {dateStr} &nbsp;·&nbsp; {timeStr}</p>
       </div>
       <div className="header-actions">
+        {/* Light / Dark Mode Toggle */}
+        <button
+          className="header-icon-btn theme-toggle-btn"
+          onClick={onToggleTheme}
+          title={theme === 'light' ? 'Switch to Dark Mode (🌙)' : 'Switch to Light Mode (☀️)'}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', width: 'auto' }}
+        >
+          {theme === 'light' ? (
+            <>
+              <Moon size={16} style={{ color: '#475569' }} />
+              <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>Dark</span>
+            </>
+          ) : (
+            <>
+              <Sun size={16} style={{ color: '#fbbf24' }} />
+              <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>Light</span>
+            </>
+          )}
+        </button>
+
         <div className="live-badge">
           <span className="live-dot"></span>
           LIVE

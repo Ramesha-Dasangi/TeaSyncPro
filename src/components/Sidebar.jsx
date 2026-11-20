@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, FileText, LogOut, Leaf, Factory,
-  ClipboardList, Truck, Users, Settings, DollarSign, Package, ShieldCheck
+  ClipboardList, Truck, Users, Settings, DollarSign, Package, ShieldCheck, Box
 } from 'lucide-react';
 import { ROLES } from '../data/mockData';
 
@@ -10,7 +10,8 @@ const getNavItems = (role) => {
     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.INVENTORY_OFFICER] },
     { key: 'collection', label: 'Leaf Collection', icon: Leaf, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.COLLECTION_OFFICER, ROLES.SUPPLIER] },
     { key: 'production', label: 'Production Batches', icon: Factory, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.WITHERING_OFFICER, ROLES.ROLLING_OFFICER, ROLES.AERATION_OFFICER, ROLES.DRYING_OFFICER] },
-    { key: 'grading', label: 'Grading & Packaging', icon: Package, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.GRADING_OFFICER, ROLES.PACKAGING_OFFICER] },
+    { key: 'grading', label: 'Grading & Packaging', icon: Package, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.GRADING_OFFICER, ROLES.PACKAGING_OFFICER, ROLES.INVENTORY_OFFICER] },
+    { key: 'packaging', label: 'Packaging Records', icon: Box, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.PACKAGING_OFFICER] },
     { key: 'inventory', label: 'Inventory', icon: ClipboardList, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.INVENTORY_OFFICER] },
     { key: 'suppliers', label: 'Suppliers', icon: Truck, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER, ROLES.COLLECTION_OFFICER] },
     { key: 'employees', label: 'Employees', icon: Users, roles: [ROLES.ADMIN, ROLES.FACTORY_MANAGER] },
