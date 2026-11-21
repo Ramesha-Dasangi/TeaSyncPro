@@ -43,7 +43,7 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
   const dismiss     = (id) => setNotifs(notifs.filter(n => n.id !== id));
 
   return (
-    <header className="top-header" style={{ position: 'relative' }}>
+    <header className="top-header">
       <div className="header-page-title">
         <h1>{page.title}</h1>
         <p>{page.subtitle} &nbsp;·&nbsp; {dateStr} &nbsp;·&nbsp; {timeStr}</p>

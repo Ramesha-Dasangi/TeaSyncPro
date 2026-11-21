@@ -108,15 +108,15 @@ function App() {
       case 'inventory':
         return <InventoryPage />;
       case 'admin':
-        return <AdminPage user={user} onNavigate={setCurrentPage} />;
+        return <AdminPage user={user} initialTab="users" onNavigate={setCurrentPage} />;
       case 'suppliers':
-        return <PlaceholderPage title="Supplier Management" description="Supplier profiles, registration, and leaf supply records." />;
+        return <AdminPage user={user} initialTab="suppliers" onNavigate={setCurrentPage} />;
       case 'employees':
-        return <PlaceholderPage title="Employee Management" description="Factory workforce, shift allocations, and attendance records." />;
+        return <AdminPage user={user} initialTab="employees" onNavigate={setCurrentPage} />;
       case 'finance':
         return <FinancePage user={user} onNavigate={setCurrentPage} />;
       case 'settings':
-        return <PlaceholderPage title="System Settings" description="Factory configuration, estate details, and account preferences." />;
+        return <AdminPage user={user} initialTab="settings" onNavigate={setCurrentPage} />;
       default:
         return <Dashboard />;
     }

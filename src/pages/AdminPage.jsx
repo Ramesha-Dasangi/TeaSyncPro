@@ -1361,9 +1361,15 @@ function SettingsTab({ notify }) {
 }
 
 // ─── MAIN ADMIN PAGE ─────────────────────────────────────────────────────────
-export default function AdminPage({ user }) {
-  const [activeTab, setActiveTab] = useState('users');
+export default function AdminPage({ user, initialTab = 'users', onNavigate }) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'users');
   const [notification, setNotification] = useState('');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const notify = (msg) => {
     setNotification(msg);
