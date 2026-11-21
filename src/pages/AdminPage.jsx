@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import {
   Users, Truck, Calendar, DollarSign, Award, FileText,
   Plus, Pencil, Trash2, Search, X, ChevronRight, Printer,
-  ShieldCheck, TrendingUp, Package, AlertCircle
+  ShieldCheck, TrendingUp, Package, AlertCircle,
+  UserCheck, Settings, Phone, Mail, Briefcase, Building2,
+  Bell, Shield, Database, Globe, Palette, Save
 } from 'lucide-react';
 import {
   ROLES, USERS, SUPPLIERS, COLLECTION_SCHEDULES,
@@ -1011,10 +1013,363 @@ function ReportsTab() {
   );
 }
 
+// ─── EMPLOYEES TAB ───────────────────────────────────────────────────────────
+const DEPARTMENTS = ['Factory', 'Administration', 'Collection', 'Finance', 'Quality Control'];
+const DESIGNATIONS = ['Factory Manager', 'Collection Officer', 'Finance Officer', 'Withering Officer', 'Rolling Officer', 'Aeration Officer', 'Drying Officer', 'Grading Officer', 'Admin'];
+const SAMPLE_EMPLOYEES = [
+  { emp_id: 'E001', name: 'Kamal Perera',    designation: 'Factory Manager',    department: 'Administration',    phone: '077-1234567', email: 'kamal@teasync.lk',    status: 'Active',   joined: '2021-03-15' },
+  { emp_id: 'E002', name: 'Nimal Silva',     designation: 'Withering Officer',  department: 'Factory',           phone: '076-2345678', email: 'nimal@teasync.lk',    status: 'Active',   joined: '2022-06-01' },
+  { emp_id: 'E003', name: 'Sunil Fernando', designation: 'Collection Officer', department: 'Collection',        phone: '071-3456789', email: 'sunil@teasync.lk',    status: 'Active',   joined: '2020-11-20' },
+  { emp_id: 'E004', name: 'Amara De Silva', designation: 'Finance Officer',    department: 'Finance',           phone: '070-4567890', email: 'amara@teasync.lk',    status: 'Active',   joined: '2023-01-10' },
+  { emp_id: 'E005', name: 'Ravi Jayawardena', designation: 'Grading Officer', department: 'Quality Control',  phone: '075-5678901', email: 'ravi@teasync.lk',     status: 'On Leave', joined: '2021-08-05' },
+  { emp_id: 'E006', name: 'Priya Kumari',   designation: 'Rolling Officer',    department: 'Factory',           phone: '074-6789012', email: 'priya@teasync.lk',    status: 'Active',   joined: '2022-04-18' },
+  { emp_id: 'E007', name: 'Dhanushka Rajapaksa', designation: 'Drying Officer', department: 'Factory',         phone: '077-7890123', email: 'dhanushka@teasync.lk', status: 'Active',  joined: '2023-07-22' },
+];
+
+function EmployeesTab({ notify }) {
+  const [records, setRecords] = useState(SAMPLE_EMPLOYEES);
+  const [search, setSearch]   = useState('');
+  const [deptFilter, setDeptFilter] = useState('All');
+  const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null);
+  const emptyForm = { emp_id: '', name: '', designation: DESIGNATIONS[0], department: DEPARTMENTS[0], phone: '', email: '', status: 'Active', joined: '' };
+  const [form, setForm] = useState(emptyForm);
+
+  const filtered = records.filter(r => {
+    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.designation.toLowerCase().includes(search.toLowerCase()) ||
+      r.emp_id.toLowerCase().includes(search.toLowerCase());
+    const matchDept = deptFilter === 'All' || r.department === deptFilter;
+    return matchSearch && matchDept;
+  });
+
+  const stats = [
+    { label: 'Total Employees', value: records.length, icon: Users, color: '#10b981' },
+    { label: 'Active',          value: records.filter(r => r.status === 'Active').length, icon: UserCheck, color: '#3b82f6' },
+    { label: 'On Leave',        value: records.filter(r => r.status === 'On Leave').length, icon: Briefcase, color: '#f59e0b' },
+    { label: 'Departments',     value: new Set(records.map(r => r.department)).size, icon: Building2, color: '#8b5cf6' },
+  ];
+
+  const handleAdd = () => {
+    setRecords(prev => [...prev, { ...form }]);
+    setShowAdd(false); setForm(emptyForm);
+    notify('Employee added successfully!');
+  };
+  const handleEdit = () => {
+    setRecords(prev => prev.map(r => r.emp_id === editItem.emp_id ? { ...editItem } : r));
+    setEditItem(null); notify('Employee updated!');
+  };
+  const handleDelete = () => {
+    setRecords(prev => prev.filter(r => r.emp_id !== deleteItem.emp_id));
+    setDeleteItem(null); notify('Employee removed.');
+  };
+
+  return (
+    <div>
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+        {stats.map(c => (
+          <div key={c.label} className="metric-card" style={{ borderTop: `3px solid ${c.color}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: c.color }}>{c.value}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{c.label}</div>
+              </div>
+              <c.icon size={28} color={c.color} opacity={0.7} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+          <input className="input-field" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees…" style={{ paddingLeft: 32, width: '100%' }} />
+        </div>
+        <select className="select-field" value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={{ width: 180 }}>
+          <option value="All">All Departments</option>
+          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <button className="btn-primary" onClick={() => { setForm(emptyForm); setShowAdd(true); }}>
+          <Plus size={15} /> Add Employee
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="content-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--table-header-bg)', borderBottom: '2px solid var(--border-color)' }}>
+                {['Emp ID', 'Name', 'Designation', 'Department', 'Phone', 'Status', 'Joined', 'Actions'].map(h => (
+                  <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r, i) => (
+                <tr key={r.emp_id} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 0 ? 'var(--table-row-even)' : 'transparent' }}>
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{r.emp_id}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{r.name}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>{r.designation}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                    <span style={{ background: '#10b98115', color: '#059669', borderRadius: 999, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{r.department}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>{r.phone}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span className={r.status === 'Active' ? 'status-badge-completed' : 'status-badge-pending'}>{r.status}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{r.joined}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="action-btn-edit" onClick={() => setEditItem({ ...r })}><Pencil size={14} /></button>
+                      <button className="action-btn-delete" onClick={() => setDeleteItem(r)}><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Modal */}
+      {showAdd && (
+        <Modal title="Add New Employee" onClose={() => setShowAdd(false)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            <FormRow label="Employee ID"><input className="input-field" value={form.emp_id} onChange={e => setForm(p => ({ ...p, emp_id: e.target.value }))} placeholder="E008" /></FormRow>
+            <FormRow label="Full Name"><input className="input-field" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Kasun Bandara" /></FormRow>
+            <FormRow label="Designation">
+              <select className="select-field" value={form.designation} onChange={e => setForm(p => ({ ...p, designation: e.target.value }))}>
+                {DESIGNATIONS.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Department">
+              <select className="select-field" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))}>
+                {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Phone"><input className="input-field" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="077-0000000" /></FormRow>
+            <FormRow label="Email"><input className="input-field" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="name@teasync.lk" /></FormRow>
+            <FormRow label="Joined Date"><input className="input-field" type="date" value={form.joined} onChange={e => setForm(p => ({ ...p, joined: e.target.value }))} /></FormRow>
+            <FormRow label="Status">
+              <select className="select-field" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+                <option>Active</option><option>On Leave</option><option>Resigned</option>
+              </select>
+            </FormRow>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+            <button className="btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button className="btn-primary" onClick={handleAdd} disabled={!form.name || !form.emp_id}>Add Employee</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Modal */}
+      {editItem && (
+        <Modal title="Edit Employee" onClose={() => setEditItem(null)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            <FormRow label="Full Name"><input className="input-field" value={editItem.name} onChange={e => setEditItem(p => ({ ...p, name: e.target.value }))} /></FormRow>
+            <FormRow label="Designation">
+              <select className="select-field" value={editItem.designation} onChange={e => setEditItem(p => ({ ...p, designation: e.target.value }))}>
+                {DESIGNATIONS.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Department">
+              <select className="select-field" value={editItem.department} onChange={e => setEditItem(p => ({ ...p, department: e.target.value }))}>
+                {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Phone"><input className="input-field" value={editItem.phone} onChange={e => setEditItem(p => ({ ...p, phone: e.target.value }))} /></FormRow>
+            <FormRow label="Status">
+              <select className="select-field" value={editItem.status} onChange={e => setEditItem(p => ({ ...p, status: e.target.value }))}>
+                <option>Active</option><option>On Leave</option><option>Resigned</option>
+              </select>
+            </FormRow>
+            <FormRow label="Joined Date"><input className="input-field" type="date" value={editItem.joined} onChange={e => setEditItem(p => ({ ...p, joined: e.target.value }))} /></FormRow>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+            <button className="btn-secondary" onClick={() => setEditItem(null)}>Cancel</button>
+            <button className="btn-primary" onClick={handleEdit}>Save Changes</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Modal */}
+      {deleteItem && (
+        <Modal title="Remove Employee" onClose={() => setDeleteItem(null)}>
+          <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
+            <Trash2 size={40} color="#ef4444" style={{ marginBottom: 12 }} />
+            <p style={{ color: 'var(--text-primary)', marginBottom: 6 }}>Remove employee <strong>{deleteItem.name}</strong>?</p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>This action cannot be undone.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button className="btn-secondary" onClick={() => setDeleteItem(null)}>Cancel</button>
+            <button className="btn-secondary-danger" onClick={handleDelete}>Remove</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
+function SettingsTab({ notify }) {
+  const [settings, setSettings] = useState({
+    factoryName: 'TeaSyncPro Ceylon Tea Factory',
+    factoryCode: 'TSP-CLN-001',
+    location: 'Kandy District, Central Province, Sri Lanka',
+    contactEmail: 'admin@teasyncpro.lk',
+    contactPhone: '081-2234567',
+    leafRateUnit: 'kg',
+    currency: 'LKR',
+    timeZone: 'Asia/Colombo',
+    language: 'English',
+    autoBackup: true,
+    emailNotifications: true,
+    smsNotifications: false,
+    lowStockAlert: true,
+    lowStockThreshold: 100,
+    sessionTimeout: 30,
+    maxLoginAttempts: 5,
+  });
+
+  const handleSave = (section) => {
+    notify(`${section} settings saved successfully!`);
+  };
+
+  const Row = ({ label, children }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', alignItems: 'center', gap: 16, padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</label>
+      <div>{children}</div>
+    </div>
+  );
+
+  const Toggle = ({ value, onChange }) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <div
+        onClick={() => onChange(!value)}
+        style={{
+          width: 44, height: 24, borderRadius: 999, background: value ? '#10b981' : 'var(--slate-700)',
+          position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
+        }}
+      >
+        <div style={{
+          position: 'absolute', top: 3, left: value ? 23 : 3,
+          width: 18, height: 18, borderRadius: '50%', background: '#fff',
+          transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        }} />
+      </div>
+      <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{value ? 'Enabled' : 'Disabled'}</span>
+    </label>
+  );
+
+  const sections = [
+    {
+      title: 'Factory Information', icon: Building2, color: '#10b981',
+      content: (
+        <>
+          <Row label="Factory Name"><input className="input-field" value={settings.factoryName} onChange={e => setSettings(p => ({ ...p, factoryName: e.target.value }))} /></Row>
+          <Row label="Factory Code"><input className="input-field" value={settings.factoryCode} onChange={e => setSettings(p => ({ ...p, factoryCode: e.target.value }))} /></Row>
+          <Row label="Location"><input className="input-field" value={settings.location} onChange={e => setSettings(p => ({ ...p, location: e.target.value }))} /></Row>
+          <Row label="Contact Email"><input className="input-field" type="email" value={settings.contactEmail} onChange={e => setSettings(p => ({ ...p, contactEmail: e.target.value }))} /></Row>
+          <Row label="Contact Phone"><input className="input-field" value={settings.contactPhone} onChange={e => setSettings(p => ({ ...p, contactPhone: e.target.value }))} /></Row>
+        </>
+      ),
+    },
+    {
+      title: 'System Preferences', icon: Globe, color: '#3b82f6',
+      content: (
+        <>
+          <Row label="Currency">
+            <select className="select-field" value={settings.currency} onChange={e => setSettings(p => ({ ...p, currency: e.target.value }))}>
+              <option value="LKR">LKR – Sri Lankan Rupee</option>
+              <option value="USD">USD – US Dollar</option>
+            </select>
+          </Row>
+          <Row label="Time Zone">
+            <select className="select-field" value={settings.timeZone} onChange={e => setSettings(p => ({ ...p, timeZone: e.target.value }))}>
+              <option value="Asia/Colombo">Asia/Colombo (IST+30)</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </Row>
+          <Row label="Language">
+            <select className="select-field" value={settings.language} onChange={e => setSettings(p => ({ ...p, language: e.target.value }))}>
+              <option>English</option><option>Sinhala</option><option>Tamil</option>
+            </select>
+          </Row>
+          <Row label="Leaf Weight Unit">
+            <select className="select-field" value={settings.leafRateUnit} onChange={e => setSettings(p => ({ ...p, leafRateUnit: e.target.value }))}>
+              <option value="kg">Kilograms (kg)</option>
+              <option value="g">Grams (g)</option>
+            </select>
+          </Row>
+        </>
+      ),
+    },
+    {
+      title: 'Notifications', icon: Bell, color: '#8b5cf6',
+      content: (
+        <>
+          <Row label="Email Notifications"><Toggle value={settings.emailNotifications} onChange={v => setSettings(p => ({ ...p, emailNotifications: v }))} /></Row>
+          <Row label="SMS Notifications"><Toggle value={settings.smsNotifications} onChange={v => setSettings(p => ({ ...p, smsNotifications: v }))} /></Row>
+          <Row label="Low Stock Alerts"><Toggle value={settings.lowStockAlert} onChange={v => setSettings(p => ({ ...p, lowStockAlert: v }))} /></Row>
+          <Row label="Low Stock Threshold (kg)">
+            <input className="input-field" type="number" value={settings.lowStockThreshold} onChange={e => setSettings(p => ({ ...p, lowStockThreshold: e.target.value }))} style={{ width: 120 }} />
+          </Row>
+        </>
+      ),
+    },
+    {
+      title: 'Security', icon: Shield, color: '#ef4444',
+      content: (
+        <>
+          <Row label="Session Timeout (min)">
+            <input className="input-field" type="number" value={settings.sessionTimeout} onChange={e => setSettings(p => ({ ...p, sessionTimeout: e.target.value }))} style={{ width: 120 }} />
+          </Row>
+          <Row label="Max Login Attempts">
+            <input className="input-field" type="number" value={settings.maxLoginAttempts} onChange={e => setSettings(p => ({ ...p, maxLoginAttempts: e.target.value }))} style={{ width: 120 }} />
+          </Row>
+          <Row label="Auto Backup"><Toggle value={settings.autoBackup} onChange={v => setSettings(p => ({ ...p, autoBackup: v }))} /></Row>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {sections.map(sec => (
+        <div key={sec.title} className="content-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: sec.color + '1a', borderRadius: 8, padding: '6px 8px', display: 'flex' }}>
+                <sec.icon size={18} color={sec.color} />
+              </div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{sec.title}</h3>
+            </div>
+            <button className="btn-primary" onClick={() => handleSave(sec.title)} style={{ padding: '7px 16px', fontSize: 12 }}>
+              <Save size={13} /> Save
+            </button>
+          </div>
+          {sec.content}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── MAIN ADMIN PAGE ─────────────────────────────────────────────────────────
-export default function AdminPage({ user }) {
-  const [activeTab, setActiveTab] = useState('users');
+export default function AdminPage({ user, initialTab = 'users', onNavigate }) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'users');
   const [notification, setNotification] = useState('');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const notify = (msg) => {
     setNotification(msg);
@@ -1024,10 +1379,12 @@ export default function AdminPage({ user }) {
   const tabs = [
     { key: 'users',     label: 'Users',              icon: Users },
     { key: 'suppliers', label: 'Suppliers',           icon: Truck },
+    { key: 'employees', label: 'Employees',           icon: UserCheck },
     { key: 'schedules', label: 'Collection Schedules',icon: Calendar },
     { key: 'rates',     label: 'Daily Leaf Rates',    icon: DollarSign },
     { key: 'grades',    label: 'Tea Grades',          icon: Award },
     { key: 'reports',   label: 'System Reports',      icon: FileText },
+    { key: 'settings',  label: 'Settings',            icon: Settings },
   ];
 
   return (
@@ -1077,10 +1434,12 @@ export default function AdminPage({ user }) {
       {/* Tab Content */}
       {activeTab === 'users'     && <UsersTab notify={notify} />}
       {activeTab === 'suppliers' && <SuppliersTab notify={notify} />}
+      {activeTab === 'employees' && <EmployeesTab notify={notify} />}
       {activeTab === 'schedules' && <SchedulesTab notify={notify} />}
       {activeTab === 'rates'     && <RatesTab notify={notify} />}
       {activeTab === 'grades'    && <GradesTab notify={notify} />}
       {activeTab === 'reports'   && <ReportsTab />}
+      {activeTab === 'settings'  && <SettingsTab notify={notify} />}
     </div>
   );
 }
