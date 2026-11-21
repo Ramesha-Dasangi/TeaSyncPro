@@ -1352,9 +1352,9 @@ ul { list-style: none; }
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--slate-200);
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #ffffff;
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -1363,6 +1363,7 @@ ul { list-style: none; }
   cursor: pointer;
   transition: all 0.2s ease;
   z-index: 10;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .login-back-btn:hover {
   background: rgba(16, 185, 129, 0.25);
@@ -2845,6 +2846,23 @@ ul { list-style: none; }
   .features-grid { grid-template-columns: repeat(2, 1fr); }
   .testimonials-grid { grid-template-columns: 1fr; }
   .landing-stats { grid-template-columns: repeat(2, 1fr); }
+  /* Admin tabs wrap on medium screens */
+  .metric-card { padding: 16px; }
+}
+@media (max-width: 768px) {
+  /* Sidebar collapses — main area full width */
+  .main-area { margin-left: 0; }
+  .sidebar { transform: translateX(-100%); }
+  /* Page content padding */
+  .page-content { padding: 16px; padding-top: calc(var(--header-height) + 16px); }
+  /* Header compact */
+  .top-header { padding: 0 16px; }
+  .header-page-title h1 { font-size: 1rem; }
+  .header-page-title p { display: none; }
+  /* Cards grid single column */
+  .grid-2, .grid-2-1, .grid-3 { grid-template-columns: 1fr !important; }
+  /* KPI cards 2-col on tablet */
+  div[style*="repeat(4,1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 640px) {
   .landing-nav { padding: 14px 20px; }
@@ -2860,4 +2878,10 @@ ul { list-style: none; }
   .landing-stats { grid-template-columns: repeat(2, 1fr); }
   .landing-footer-top { flex-direction: column; text-align: center; }
   .landing-footer-links { flex-direction: column; gap: 12px; }
+  /* Login page stacked */
+  .login-page { grid-template-columns: 1fr; }
+  .login-left { display: none; }
+  .login-right { padding: 32px 20px; }
+  /* KPI cards 1-col on mobile */
+  div[style*="repeat(4,1fr)"] { grid-template-columns: 1fr !important; }
 }
