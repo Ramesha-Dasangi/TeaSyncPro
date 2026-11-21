@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Leaf, ChevronRight, BarChart3, Truck, Factory, Package, 
   Users, ShieldCheck, Star, ArrowRight, Play, CheckCircle,
-  Thermometer, Activity, Award, Sparkles, Clock, MapPin
+  Thermometer, Activity, Award, Sparkles, Clock, MapPin, Sun, Moon
 } from 'lucide-react';
 
-export default function LandingPage({ onGetStarted }) {
+export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
   // animate stats counting up when page loads
   const [statsVisible, setStatsVisible] = useState(false);
   const [counts, setCounts] = useState({ batches: 0, suppliers: 0, accuracy: 0, estates: 0 });
@@ -150,10 +150,38 @@ export default function LandingPage({ onGetStarted }) {
           <a href="#stats">Performance</a>
           <a href="#reviews">Testimonials</a>
         </div>
-        <button className="landing-nav-btn" onClick={onGetStarted}>
-          <span>Sign In</span>
-          <ChevronRight size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              className="theme-toggle-landing-btn"
+              title={theme === 'light' ? 'Switch to Dark Mode (🌙)' : 'Switch to Light Mode (☀️)'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'var(--slate-850)', border: '1px solid var(--card-border)',
+                borderRadius: '10px', padding: '8px 14px', cursor: 'pointer',
+                color: 'var(--slate-200)', fontSize: '0.82rem', fontWeight: 600,
+                transition: 'all 0.2s'
+              }}
+            >
+              {theme === 'light' ? (
+                <>
+                  <Moon size={16} style={{ color: '#64748b' }} />
+                  <span>Dark</span>
+                </>
+              ) : (
+                <>
+                  <Sun size={16} style={{ color: '#fbbf24' }} />
+                  <span>Light</span>
+                </>
+              )}
+            </button>
+          )}
+          <button className="landing-nav-btn" onClick={onGetStarted}>
+            <span>Sign In</span>
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </nav>
 
       {/* ── HERO SECTION WITH REALISTIC TEA ESTATE IMAGERY ── */}

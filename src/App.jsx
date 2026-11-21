@@ -70,12 +70,12 @@ function App() {
 
   // show landing page first
   if (view === 'landing') {
-    return <LandingPage onGetStarted={() => setView('login')} />;
+    return <LandingPage onGetStarted={() => setView('login')} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   // show login page after Get Started clicked
   if (view === 'login') {
-    return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} />;
+    return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   // render view based on active tab
