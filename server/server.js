@@ -19,6 +19,7 @@ import ProductionStage from './models/ProductionStage.js';
 import ProductionStageLog from './models/ProductionStageLog.js';
 import TeaGrade from './models/TeaGrade.js';
 import FinishedOutput from './models/FinishedOutput.js';
+import SalesInvoice from './models/SalesInvoice.js';
 
 // Load environment variables from .env file first thing
 dotenv.config();

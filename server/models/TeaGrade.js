@@ -27,7 +27,7 @@ const TeaGrade = sequelize.define('TeaGrade', {
   }
 
 }, {
-  tableName: 'tea_grades',
+  tableName: 'tea_grade',
   timestamps: false
 });
 

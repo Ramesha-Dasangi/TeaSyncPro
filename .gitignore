@@ -26,3 +26,9 @@ dist-ssr
 *.sln
 *.sw?
 run_server.bat
+
+# Design & Reference Diagrams (Local only)
+*ER_Diagram*
+*ER-Diagram*
+ER_Diagram_Reference*
+
