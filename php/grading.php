@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($batchId > 0 && $gradeId > 0 && $qty > 0) {
         $stmt = $pdo->prepare("
-            INSERT INTO finished_outputs (batch_id, grade_id, quantity, unit_cost, out_date, tax_percentage)
+            INSERT INTO finished_output (batch_id, grade_id, quantity, unit_cost, out_date, tax_percentage)
             VALUES (?, ?, ?, ?, ?, 8.00)
         ");
         $stmt->execute([$batchId, $gradeId, $qty, $unitCost, $outDate]);
@@ -33,17 +33,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Fetch Finished Outputs
 $outputs = $pdo->query("
     SELECT fo.*, tg.grade_name, tg.description, pb.prod_date
-    FROM finished_outputs fo
-    JOIN tea_grades tg ON fo.grade_id = tg.grade_id
-    JOIN production_batches pb ON fo.batch_id = pb.batch_id
+    FROM finished_output fo
+    JOIN tea_grade tg ON fo.grade_id = tg.grade_id
+    JOIN production_batch pb ON fo.batch_id = pb.batch_id
     ORDER BY fo.out_date DESC, fo.output_id DESC
 ")->fetchAll();
 
 // Fetch Tea Grades Catalog
-$grades = $pdo->query("SELECT * FROM tea_grades ORDER BY grade_id ASC")->fetchAll();
+$grades = $pdo->query("SELECT * FROM tea_grade ORDER BY grade_id ASC")->fetchAll();
 
 // Fetch Batches for dropdown
-$batches = $pdo->query("SELECT * FROM production_batches ORDER BY batch_id DESC")->fetchAll();
+$batches = $pdo->query("SELECT * FROM production_batch ORDER BY batch_id DESC")->fetchAll();
 
 // Aggregates
 $totalOutputKg = array_sum(array_column($outputs, 'quantity'));
