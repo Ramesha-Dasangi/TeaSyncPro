@@ -2,11 +2,8 @@ import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
 
 // User model - handles system login and role-based access control
-// Each user account is linked to an employee and has a specific role
-// Role determines what pages and features the user can access
-// Roles: 'Admin', 'InventoryOfficer', 'WitheringOfficer', 'RollingOfficer',
-//        'AerationOfficer', 'DryingOfficer', 'GradingOfficer',
-//        'PackagingOfficer', 'FinanceOfficer', 'CollectionOfficer', 'Supplier'
+// Each user account is linked 1:1 to one employee — one employee can have only one user account
+// Status field allows admin to deactivate resigned officers without breaking audit trails
 const User = sequelize.define('User', {
 
   // Primary key - auto generated unique ID for each user account
@@ -23,6 +20,15 @@ const User = sequelize.define('User', {
     unique: true
   },
 
+  // Email address for notifications and password recovery
+  email: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    validate: {
+      isEmail: true
+    }
+  },
+
   // Hashed password using bcrypt - never store plain text passwords
   password_hash: {
     type: DataTypes.STRING(255),
@@ -35,20 +41,22 @@ const User = sequelize.define('User', {
     allowNull: false
   },
 
-  // Foreign key - the employee account this user belongs to (nullable for Admin)
-  employee_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true
+  // Account status - 'Active', 'Inactive', 'Suspended'
+  status: {
+    type: DataTypes.STRING(20),
+    defaultValue: 'Active'
   },
 
-  // Display name shown in the UI after login
-  name: {
-    type: DataTypes.STRING(100),
-    allowNull: false
+  // Foreign key - the employee this user account belongs to
+  // UNIQUE enforces true 1:1: one employee can have only ONE user account
+  employee_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    unique: true        // 1:1 — prevents two user accounts linking to the same employee
   }
 
 }, {
-  tableName: 'users',
+  tableName: 'user',
   timestamps: false
 });
 
