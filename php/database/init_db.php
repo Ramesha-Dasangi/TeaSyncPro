@@ -8,7 +8,7 @@ try {
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     echo "Connected using driver: [{$driver}]\n";
 
-    $tables = ['users', 'employees', 'suppliers', 'tea_collections', 'production_batches', 'tea_grades', 'finished_outputs', 'supplier_payments'];
+    $tables = ['user', 'employee', 'supplier', 'tea_collection', 'production_batch', 'tea_grade', 'finished_output', 'supplier_payment', 'attendance', 'collection_schedule', 'daily_leaf_rate', 'production_stage', 'production_stage_log', 'sales_invoice'];
     foreach ($tables as $t) {
         $stmt = $pdo->query("SELECT COUNT(*) FROM {$t}");
         $cnt = $stmt->fetchColumn();

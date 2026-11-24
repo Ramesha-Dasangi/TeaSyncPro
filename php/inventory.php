@@ -16,8 +16,8 @@ $stockByGrade = $pdo->query("
         COALESCE(AVG(fo.unit_cost), 1500) as avg_unit_cost,
         COALESCE(SUM(fo.quantity * fo.unit_cost), 0) as total_valuation,
         COUNT(fo.output_id) as batch_count
-    FROM tea_grades tg
-    LEFT JOIN finished_outputs fo ON tg.grade_id = fo.grade_id
+    FROM tea_grade tg
+    LEFT JOIN finished_output fo ON tg.grade_id = fo.grade_id
     GROUP BY tg.grade_id, tg.grade_name, tg.description
     ORDER BY tg.grade_id ASC
 ")->fetchAll();

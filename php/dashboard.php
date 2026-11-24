@@ -12,7 +12,7 @@ $intakeStats = $pdo->query("
         COALESCE(SUM(water_deduction_kg), 0) AS total_deduction,
         COALESCE(SUM(net_weight), 0) AS total_net,
         COUNT(*) AS total_intakes
-    FROM tea_collections
+    FROM tea_collection
 ")->fetch();
 
 $batchStats = $pdo->query("
@@ -20,19 +20,19 @@ $batchStats = $pdo->query("
         COUNT(*) as total_batches,
         SUM(CASE WHEN batch_status = 'In Progress' THEN 1 ELSE 0 END) as active_batches,
         SUM(input_qty) as total_input_qty
-    FROM production_batches
+    FROM production_batch
 ")->fetch();
 
 $outputStats = $pdo->query("
     SELECT 
         COALESCE(SUM(quantity), 0) as total_finished_kg,
         COALESCE(SUM(quantity * unit_cost), 0) as total_valuation
-    FROM finished_outputs
+    FROM finished_output
 ")->fetch();
 
 $latestRate = $pdo->query("
     SELECT rate_per_kg, effective_date 
-    FROM daily_leaf_rates 
+    FROM daily_leaf_rate 
     ORDER BY effective_date DESC, rate_id DESC 
     LIMIT 1
 ")->fetch();
@@ -40,15 +40,15 @@ $currentRate = $latestRate['rate_per_kg'] ?? 148.50;
 
 $recentCollections = $pdo->query("
     SELECT c.*, s.name AS supplier_name, s.supplier_type, cs.route_name
-    FROM tea_collections c
-    JOIN suppliers s ON c.supplier_id = s.supplier_id
-    JOIN collection_schedules cs ON c.schedule_id = cs.schedule_id
+    FROM tea_collection c
+    JOIN supplier s ON c.supplier_id = s.supplier_id
+    JOIN collection_schedule cs ON c.schedule_id = cs.schedule_id
     ORDER BY c.date DESC, c.collection_id DESC
     LIMIT 6
 ")->fetchAll();
 
 $batches = $pdo->query("
-    SELECT * FROM production_batches ORDER BY batch_id DESC LIMIT 4
+    SELECT * FROM production_batch ORDER BY batch_id DESC LIMIT 4
 ")->fetchAll();
 
 $intakeChartQuery = $pdo->query("
@@ -57,8 +57,8 @@ $intakeChartQuery = $pdo->query("
         SUM(CASE WHEN s.supplier_type = 'Commercial' THEN c.net_weight ELSE 0 END) AS commercial_kg,
         SUM(CASE WHEN s.supplier_type = 'Internal Plucker' THEN c.net_weight ELSE 0 END) AS internal_kg,
         SUM(c.net_weight) as total_kg
-    FROM tea_collections c
-    JOIN suppliers s ON c.supplier_id = s.supplier_id
+    FROM tea_collection c
+    JOIN supplier s ON c.supplier_id = s.supplier_id
     GROUP BY c.date
     ORDER BY c.date ASC
     LIMIT 7
@@ -75,8 +75,8 @@ foreach ($intakeChartQuery as $row) {
 
 $gradeQuery = $pdo->query("
     SELECT tg.grade_name, COALESCE(SUM(fo.quantity), 0) as total_qty
-    FROM tea_grades tg
-    LEFT JOIN finished_outputs fo ON tg.grade_id = fo.grade_id
+    FROM tea_grade tg
+    LEFT JOIN finished_output fo ON tg.grade_id = fo.grade_id
     GROUP BY tg.grade_id, tg.grade_name
 ")->fetchAll();
 
@@ -89,8 +89,8 @@ foreach ($gradeQuery as $g) {
 
 $stageLossQuery = $pdo->query("
     SELECT ps.stage_name, psl.input_weight, psl.output_weight, psl.weight_loss
-    FROM production_stage_logs psl
-    JOIN production_stages ps ON psl.stage_id = ps.stage_id
+    FROM production_stage_log psl
+    JOIN production_stage ps ON psl.stage_id = ps.stage_id
     WHERE psl.batch_id = 2
     ORDER BY ps.stage_no ASC
 ")->fetchAll();
