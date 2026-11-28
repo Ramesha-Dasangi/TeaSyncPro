@@ -6,9 +6,9 @@ const router = express.Router();
 const PRODUCTION_ROLES = ['Administrator', 'Factory Manager', 'Withering Officer', 'Rolling Officer', 'Aeration Officer', 'Drying Officer', 'Inventory Officer'];
 
 // GET all production batches with stage logs summary
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const batches = query(`
+    const batches = await query(`
       SELECT 
         b.*,
         COUNT(l.stage_log_id) AS logged_stages,
@@ -25,12 +25,12 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // GET single batch with full logs
-router.get('/:id', requireAuth, (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
-    const batch = getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [req.params.id]);
+    const batch = await getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [req.params.id]);
     if (!batch) return res.status(404).json({ error: 'Batch not found' });
 
-    const logs = query(`
+    const logs = await query(`
       SELECT 
         l.*,
         s.stage_name,
@@ -48,7 +48,7 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // POST new production batch
-router.post('/', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
+router.post('/', requireAuth, requireRole(...PRODUCTION_ROLES), async (req, res) => {
   try {
     const {
       batch_code,
@@ -63,12 +63,12 @@ router.post('/', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
     const qty = parseFloat(input_qty) || 0;
     const waste = parseFloat(wastage_qty) || 0;
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO production_batch (batch_code, prod_date, input_qty, wastage_qty, batch_status)
       VALUES (?, ?, ?, ?, ?)
     `, [code, date, qty, waste, batch_status]);
 
-    const newBatch = getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [result.lastInsertRowid]);
+    const newBatch = await getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [result.lastInsertRowid]);
     res.status(201).json(newBatch);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,12 +76,12 @@ router.post('/', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
 });
 
 // PUT update production batch
-router.put('/:id', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
+router.put('/:id', requireAuth, requireRole(...PRODUCTION_ROLES), async (req, res) => {
   try {
     const { id } = req.params;
     const { batch_status, wastage_qty, input_qty } = req.body;
 
-    execute(`
+    await execute(`
       UPDATE production_batch
       SET batch_status = COALESCE(?, batch_status),
           wastage_qty = COALESCE(?, wastage_qty),
@@ -89,7 +89,7 @@ router.put('/:id', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => 
       WHERE batch_id = ?
     `, [batch_status, wastage_qty, input_qty, id]);
 
-    const updated = getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [id]);
+    const updated = await getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [id]);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -97,9 +97,9 @@ router.put('/:id', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => 
 });
 
 // GET all production stage logs
-router.get('/logs/all', requireAuth, (req, res) => {
+router.get('/logs/all', requireAuth, async (req, res) => {
   try {
-    const logs = query(`
+    const logs = await query(`
       SELECT 
         l.*,
         b.batch_code,
@@ -117,7 +117,7 @@ router.get('/logs/all', requireAuth, (req, res) => {
 });
 
 // POST production stage log
-router.post('/logs', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
+router.post('/logs', requireAuth, requireRole(...PRODUCTION_ROLES), async (req, res) => {
   try {
     const {
       batch_id,
@@ -134,14 +134,14 @@ router.post('/logs', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) =
     const outWeight = parseFloat(output_weight) || 0;
     const loss = Math.max(0, inWeight - outWeight);
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO production_stage_log (
         batch_id, stage_id, machine_no, input_weight, output_weight,
         weight_loss, temperature_celsius, start_time, end_time
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [batch_id, stage_id, machine_no, inWeight, outWeight, loss, temperature_celsius, start_time, end_time]);
 
-    const newLog = getOne(`
+    const newLog = await getOne(`
       SELECT 
         l.*,
         b.batch_code,
@@ -160,9 +160,9 @@ router.post('/logs', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) =
 });
 
 // GET stages list
-router.get('/meta/stages', requireAuth, (req, res) => {
+router.get('/meta/stages', requireAuth, async (req, res) => {
   try {
-    const stages = query(`SELECT * FROM production_stage ORDER BY stage_no ASC`);
+    const stages = await query(`SELECT * FROM production_stage ORDER BY stage_no ASC`);
     res.json(stages);
   } catch (err) {
     res.status(500).json({ error: err.message });

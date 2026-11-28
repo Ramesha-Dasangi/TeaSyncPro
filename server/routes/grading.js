@@ -6,9 +6,9 @@ const router = express.Router();
 const GRADING_ROLES = ['Administrator', 'Factory Manager', 'Grading Officer', 'Packaging Officer', 'Inventory Officer'];
 
 // GET all finished outputs (packaged lots)
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const outputs = query(`
+    const outputs = await query(`
       SELECT 
         fo.*,
         tg.grade_name,
@@ -27,7 +27,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // POST new finished output (packaging lot)
-router.post('/', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
+router.post('/', requireAuth, requireRole(...GRADING_ROLES), async (req, res) => {
   try {
     const {
       batch_id,
@@ -47,13 +47,13 @@ router.post('/', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
     const cost = parseFloat(unit_cost) || 0;
     const tax = parseFloat(tax_percentage) || 8.0;
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO finished_output (
         batch_id, grade_id, lot_number, out_date, quantity_bags, net_weight_kg, unit_cost, tax_percentage
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [batch_id, grade_id, lotNo, date, bags, weight, cost, tax]);
 
-    const newOutput = getOne(`
+    const newOutput = await getOne(`
       SELECT 
         fo.*,
         tg.grade_name,
@@ -73,10 +73,10 @@ router.post('/', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
 });
 
 // DELETE finished output
-router.delete('/:id', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
+router.delete('/:id', requireAuth, requireRole(...GRADING_ROLES), async (req, res) => {
   try {
     const { id } = req.params;
-    execute(`DELETE FROM finished_output WHERE output_id = ?`, [id]);
+    await execute(`DELETE FROM finished_output WHERE output_id = ?`, [id]);
     res.json({ message: 'Finished output record deleted', id: Number(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,9 +84,9 @@ router.delete('/:id', requireAuth, requireRole(...GRADING_ROLES), (req, res) => 
 });
 
 // GET tea grades
-router.get('/grades', requireAuth, (req, res) => {
+router.get('/grades', requireAuth, async (req, res) => {
   try {
-    const grades = query(`
+    const grades = await query(`
       SELECT 
         tg.*,
         COALESCE(SUM(fo.quantity_bags), 0) AS total_bags,

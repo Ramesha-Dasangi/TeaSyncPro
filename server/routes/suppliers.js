@@ -5,9 +5,9 @@ import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // GET all suppliers
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const suppliers = query(`
+    const suppliers = await query(`
       SELECT 
         s.*,
         COUNT(c.collection_id) AS total_deliveries,
@@ -24,11 +24,11 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // GET single supplier by ID
-router.get('/:id', requireAuth, (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
-    const supplier = getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [req.params.id]);
+    const supplier = await getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [req.params.id]);
     if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
-    const collections = query(`SELECT * FROM tea_collection WHERE supplier_id = ? ORDER BY date DESC`, [req.params.id]);
+    const collections = await query(`SELECT * FROM tea_collection WHERE supplier_id = ? ORDER BY date DESC`, [req.params.id]);
     res.json({ ...supplier, collections });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -36,7 +36,7 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // POST new supplier
-router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer'), (req, res) => {
+router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer'), async (req, res) => {
   try {
     const {
       name,
@@ -52,13 +52,13 @@ router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'C
 
     const regDate = registered_date || new Date().toISOString().slice(0, 10);
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO supplier (
         name, supplier_type, phone, email, address, bank_name, bank_account, registered_date, transport_mode
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [name, supplier_type, phone, email, address, bank_name, bank_account, regDate, transport_mode]);
 
-    const newSupplier = getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [result.lastInsertRowid]);
+    const newSupplier = await getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [result.lastInsertRowid]);
     res.status(201).json(newSupplier);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,7 +66,7 @@ router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'C
 });
 
 // PUT update supplier
-router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer', 'Supplier'), (req, res) => {
+router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer', 'Supplier'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -80,14 +80,14 @@ router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 
       transport_mode
     } = req.body;
 
-    execute(`
+    await execute(`
       UPDATE supplier
       SET name = ?, supplier_type = ?, phone = ?, email = ?,
           address = ?, bank_name = ?, bank_account = ?, transport_mode = ?
       WHERE supplier_id = ?
     `, [name, supplier_type, phone, email, address, bank_name, bank_account, transport_mode, id]);
 
-    const updated = getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [id]);
+    const updated = await getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [id]);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -95,10 +95,10 @@ router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 
 });
 
 // DELETE supplier
-router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    execute(`DELETE FROM supplier WHERE supplier_id = ?`, [id]);
+    await execute(`DELETE FROM supplier WHERE supplier_id = ?`, [id]);
     res.json({ message: 'Supplier deleted successfully', id: Number(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
