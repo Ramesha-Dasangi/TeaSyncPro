@@ -75,7 +75,7 @@ function getRoleDefaultPage($role) {
 
 function authenticateUser($username, $password) {
     $pdo = getDB();
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ? LIMIT 1");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
