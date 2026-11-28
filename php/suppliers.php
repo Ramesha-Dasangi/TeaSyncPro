@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if (!empty($name) && !empty($phone)) {
         $stmt = $pdo->prepare("
-            INSERT INTO suppliers (name, supplier_type, phone, address, payment, transport_mode)
+            INSERT INTO supplier (name, supplier_type, phone, address, payment, transport_mode)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([$name, $type, $phone, $address, $payment, $transport]);
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Search
 $search = trim($_GET['search'] ?? '');
-$query = "SELECT * FROM suppliers WHERE 1=1";
+$query = "SELECT * FROM supplier WHERE 1=1";
 $params = [];
 if (!empty($search)) {
     $query .= " AND (name LIKE ? OR address LIKE ? OR phone LIKE ?)";

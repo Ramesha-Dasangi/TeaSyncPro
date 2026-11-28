@@ -15,6 +15,11 @@ import WitheringPage from './pages/WitheringPage';
 import RollingPage from './pages/RollingPage';
 import AerationPage from './pages/AerationPage';
 import DryingPage from './pages/DryingPage';
+import SupplierProfilePage from './pages/SupplierProfilePage';
+import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
+import PackagingPage from './pages/PackagingPage';
+import FinancePage from './pages/FinancePage';
+import AdminPage from './pages/AdminPage';
 import { ROLES } from './data/mockData';
 
 function App() {
@@ -46,7 +51,7 @@ function App() {
       [ROLES.AERATION_OFFICER]: 'aeration',
       [ROLES.DRYING_OFFICER]: 'drying',
       [ROLES.GRADING_OFFICER]: 'grading',
-      [ROLES.PACKAGING_OFFICER]: 'grading',
+      [ROLES.PACKAGING_OFFICER]: 'packaging',
       [ROLES.INVENTORY_OFFICER]: 'inventory',
       [ROLES.FINANCE_OFFICER]: 'finance',
       [ROLES.COLLECTION_OFFICER]: 'collection',
@@ -65,12 +70,12 @@ function App() {
 
   // show landing page first
   if (view === 'landing') {
-    return <LandingPage onGetStarted={() => setView('login')} />;
+    return <LandingPage onGetStarted={() => setView('login')} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   // show login page after Get Started clicked
   if (view === 'login') {
-    return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} />;
+    return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   // render view based on active tab
@@ -90,20 +95,28 @@ function App() {
         return <AerationPage user={user} onNavigate={setCurrentPage} />;
       case 'drying':
         return <DryingPage user={user} onNavigate={setCurrentPage} />;
+      case 'supplier_profile':
+        return <SupplierProfilePage user={user} onLogout={handleLogout} />;
+      case 'supplier_payments':
+        return <SupplierPaymentsPage user={user} />;
       case 'production':
         return <ProductionPage />;
       case 'grading':
         return <GradingPage />;
+      case 'packaging':
+        return <PackagingPage user={user} onNavigate={setCurrentPage} />;
       case 'inventory':
         return <InventoryPage />;
+      case 'admin':
+        return <AdminPage user={user} initialTab="users" onNavigate={setCurrentPage} />;
       case 'suppliers':
-        return <PlaceholderPage title="Supplier Management" description="Supplier profiles, registration, and leaf supply records." />;
+        return <AdminPage user={user} initialTab="suppliers" onNavigate={setCurrentPage} />;
       case 'employees':
-        return <PlaceholderPage title="Employee Management" description="Factory workforce, shift allocations, and attendance records." />;
+        return <AdminPage user={user} initialTab="employees" onNavigate={setCurrentPage} />;
       case 'finance':
-        return <PlaceholderPage title="Finance & Payments" description="Supplier payments, daily leaf rate adjustments, and accounts." />;
+        return <FinancePage user={user} onNavigate={setCurrentPage} />;
       case 'settings':
-        return <PlaceholderPage title="System Settings" description="Factory configuration, estate details, and account preferences." />;
+        return <AdminPage user={user} initialTab="settings" onNavigate={setCurrentPage} />;
       default:
         return <Dashboard />;
     }

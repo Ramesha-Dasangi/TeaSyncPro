@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $prodDate = !empty($_POST['prod_date']) ? $_POST['prod_date'] : date('Y-m-d');
     
     if ($inputQty > 0) {
-        $stmt = $pdo->prepare("INSERT INTO production_batches (prod_date, input_qty, wastage_qty, batch_status) VALUES (?, ?, 0, 'In Progress')");
+        $stmt = $pdo->prepare("INSERT INTO production_batch (prod_date, input_qty, wastage_qty, batch_status) VALUES (?, ?, 0, 'In Progress')");
         $stmt->execute([$prodDate, $inputQty]);
         $newBatchId = $pdo->lastInsertId();
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $witherOutput = round($inputQty * 0.90, 1);
         $witherLoss = round($inputQty - $witherOutput, 1);
         $logStmt = $pdo->prepare("
-            INSERT INTO production_stage_logs (batch_id, stage_id, machine_no, input_weight, output_weight, weight_loss, start_end_time)
+            INSERT INTO production_stage_log (batch_id, stage_id, machine_no, input_weight, output_weight, weight_loss, start_end_time)
             VALUES (?, 1, 'WM-01', ?, ?, ?, ?)
         ");
         $logStmt->execute([$newBatchId, $inputQty, $witherOutput, $witherLoss, date('Y-m-d H:i') . ' - Active']);
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch Batches
-$batches = $pdo->query("SELECT * FROM production_batches ORDER BY batch_id DESC")->fetchAll();
+$batches = $pdo->query("SELECT * FROM production_batch ORDER BY batch_id DESC")->fetchAll();
 
 // Determine selected batch
 $selectedBatchId = isset($_GET['batch_id']) ? (int)$_GET['batch_id'] : ($batches[0]['batch_id'] ?? 1);
@@ -57,8 +57,8 @@ $stageLogs = [];
 if ($currentBatch) {
     $stmt = $pdo->prepare("
         SELECT psl.*, ps.stage_name, ps.stage_no
-        FROM production_stage_logs psl
-        JOIN production_stages ps ON psl.stage_id = ps.stage_id
+        FROM production_stage_log psl
+        JOIN production_stage ps ON psl.stage_id = ps.stage_id
         WHERE psl.batch_id = ?
         ORDER BY ps.stage_no ASC
     ");
@@ -67,7 +67,7 @@ if ($currentBatch) {
 }
 
 // All Stages
-$allStages = $pdo->query("SELECT * FROM production_stages ORDER BY stage_no ASC")->fetchAll();
+$allStages = $pdo->query("SELECT * FROM production_stage ORDER BY stage_no ASC")->fetchAll();
 
 // Active Machines List
 $machines = [

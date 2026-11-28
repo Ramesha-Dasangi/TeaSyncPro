@@ -27,7 +27,7 @@ const ProductionStage = sequelize.define('ProductionStage', {
   }
 
 }, {
-  tableName: 'production_stages',
+  tableName: 'production_stage',
   timestamps: false
 });
 

@@ -28,7 +28,7 @@ const DailyLeafRate = sequelize.define('DailyLeafRate', {
   }
 
 }, {
-  tableName: 'daily_leaf_rates',
+  tableName: 'daily_leaf_rate',
   timestamps: false
 });
 

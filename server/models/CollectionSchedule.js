@@ -32,7 +32,7 @@ const CollectionSchedule = sequelize.define('CollectionSchedule', {
   }
 
 }, {
-  tableName: 'collection_schedules',
+  tableName: 'collection_schedule',
   timestamps: false
 });
 
