@@ -148,37 +148,38 @@ function ProductionPipeline({ batch, logs, stages }) {
 export default function Dashboard() {
   // ─── API State ─────────────────────────────────────────────
   const [dbSummary, setDbSummary] = useState(null);
-  const [collections, setCollections] = useState(TEA_COLLECTIONS);
-  const [suppliers, setSuppliers] = useState(SUPPLIERS);
-  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
-  const [stages, setStages] = useState(PRODUCTION_STAGES);
-  const [stageLogs, setStageLogs] = useState(PRODUCTION_STAGE_LOGS);
-  const [finishedOutputs, setFinishedOutputs] = useState(FINISHED_OUTPUTS);
-  const [teaGrades, setTeaGrades] = useState(TEA_GRADES);
-  const [rates, setRates] = useState(DAILY_LEAF_RATES);
+  const [collections, setCollections] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [stageLogs, setStageLogs] = useState([]);
+  const [finishedOutputs, setFinishedOutputs] = useState([]);
+  const [teaGrades, setTeaGrades] = useState([]);
+  const [rates, setRates] = useState([]);
 
   useEffect(() => {
     // Load real data from DB API with mockData fallback
     api.getDashboardSummary().then(d => { if (d) setDbSummary(d); });
-    api.getCollections().then(d => { if (d && d.length) setCollections(d); });
-    api.getSuppliers().then(d => { if (d && d.length) setSuppliers(d); });
-    api.getBatches().then(d => { if (d && d.length) setBatches(d); });
-    api.getProductionStages().then(d => { if (d && d.length) setStages(d); });
-    api.getStageLogs().then(d => { if (d && d.length) setStageLogs(d); });
-    api.getFinishedOutputs().then(d => { if (d && d.length) setFinishedOutputs(d); });
-    api.getTeaGrades().then(d => { if (d && d.length) setTeaGrades(d); });
-    api.getRates().then(d => { if (d && d.length) setRates(d); });
+    api.getCollections().then(d => { setCollections(d && d.length ? d : TEA_COLLECTIONS); });
+    api.getSuppliers().then(d => { setSuppliers(d && d.length ? d : SUPPLIERS); });
+    api.getBatches().then(d => { setBatches(d && d.length ? d : PRODUCTION_BATCHES); });
+    api.getProductionStages().then(d => { setStages(d && d.length ? d : PRODUCTION_STAGES); });
+    api.getStageLogs().then(d => { setStageLogs(d && d.length ? d : PRODUCTION_STAGE_LOGS); });
+    api.getFinishedOutputs().then(d => { setFinishedOutputs(d && d.length ? d : FINISHED_OUTPUTS); });
+    api.getTeaGrades().then(d => { setTeaGrades(d && d.length ? d : TEA_GRADES); });
+    api.getRates().then(d => { setRates(d && d.length ? d : DAILY_LEAF_RATES); });
   }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayCollections = collections.filter(c => c.date === todayStr || c.date === '2026-09-21');
+  const latestColDate = collections.map(c => c.date).filter(Boolean).sort().pop() || todayStr;
+  const todayCollections = collections.filter(c => c.date === todayStr || c.date === latestColDate);
   const todayGross = todayCollections.reduce((s, c) => s + (c.gross_weight || 0), 0);
   const todayNet = todayCollections.reduce((s, c) => s + (c.net_weight || 0), 0);
   const todayDeduction = todayCollections.reduce((s, c) => s + (c.water_deduction_kg || 0), 0);
   const currentRate = dbSummary?.currentRate || rates[0]?.rate_per_kg || DAILY_LEAF_RATES[0].rate_per_kg;
   const estimatedPayout = todayNet * currentRate;
   const activeBatches = dbSummary?.batchStats?.active_batches ?? batches.filter(b => b.batch_status === 'In Progress').length;
-  const todayBatch = batches.find(b => b.batch_status === 'In Progress') || batches[0] || PRODUCTION_BATCHES[0];
+  const todayBatch = batches.find(b => b.batch_status === 'In Progress') || batches[0] || null;
 
   const totalFinished = finishedOutputs.reduce((s, f) => s + (f.net_weight_kg ?? f.quantity ?? 0), 0);
   const totalBatchInput = batches.reduce((s, b) => s + (b.input_qty || 0), 0) || 1316;
@@ -272,7 +273,7 @@ export default function Dashboard() {
       </div>
 
       {/* Production Pipeline */}
-      <ProductionPipeline batch={todayBatch} logs={stageLogs} stages={stages} />
+      {todayBatch && <ProductionPipeline batch={todayBatch} logs={stageLogs} stages={stages} />}
 
       {/* Charts Row */}
       <div className="grid-2" style={{ marginBottom: '24px' }}>

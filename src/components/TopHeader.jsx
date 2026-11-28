@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { Bell, RefreshCw, Sun, Moon, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Bell, RefreshCw, Sun, Moon, X, CheckCircle, AlertCircle, Info, CheckCheck } from 'lucide-react';
+import { api } from '../services/api';
+import { PRODUCTION_BATCHES, SUPPLIER_PAYMENTS, TEA_COLLECTIONS } from '../data/mockData';
 
 const PAGE_TITLES = {
   dashboard:         { title: 'Dashboard',              subtitle: 'Estate-wide operations overview' },
@@ -17,30 +19,165 @@ const PAGE_TITLES = {
   admin:             { title: 'Administration',          subtitle: 'Manage users, suppliers, schedules & system' },
 };
 
-const SAMPLE_NOTIFICATIONS = [
-  { id: 1, type: 'success', title: 'Batch BT-2026-112 Completed',  body: 'Production batch moved to Grading stage.', time: '5m ago',  read: false },
-  { id: 2, type: 'warning', title: 'Low Inventory Alert',          body: 'BOPF Grade stock below threshold (120 kg).', time: '18m ago', read: false },
-  { id: 3, type: 'info',    title: 'New Supplier Payment Pending',  body: 'Supplier S-041 payment Rs. 24,500 awaiting approval.', time: '1h ago',  read: false },
-  { id: 4, type: 'success', title: 'Daily Leaf Collection Done',    body: '3,840 kg collected from 12 routes today.', time: '2h ago',  read: true  },
-  { id: 5, type: 'info',    title: 'System Backup Completed',       body: 'Automated backup finished successfully.', time: '5h ago',  read: true  },
-];
-
 const typeIcon = { success: CheckCircle, warning: AlertCircle, info: Info };
 const typeColor = { success: '#10b981', warning: '#f59e0b', info: '#3b82f6' };
 
-export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
+function getNotifStorageKey(user) {
+  const identity = user?.user_id || user?.username || 'guest';
+  return `teasync_notif_state_${identity}`;
+}
+
+function loadNotifPrefs(user) {
+  try {
+    const raw = localStorage.getItem(getNotifStorageKey(user));
+    if (!raw) return { readIds: [], dismissedIds: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      readIds: Array.isArray(parsed.readIds) ? parsed.readIds : [],
+      dismissedIds: Array.isArray(parsed.dismissedIds) ? parsed.dismissedIds : [],
+    };
+  } catch {
+    return { readIds: [], dismissedIds: [] };
+  }
+}
+
+function saveNotifPrefs(user, prefs) {
+  try {
+    localStorage.setItem(getNotifStorageKey(user), JSON.stringify({
+      readIds: Array.from(new Set(prefs.readIds)).slice(-200),
+      dismissedIds: Array.from(new Set(prefs.dismissedIds)).slice(-200),
+    }));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function buildOfflineFallbackNotifications(user) {
+  const items = [];
+  if (user?.role === 'Supplier') {
+    const supId = user?.supplier_id || 1;
+    SUPPLIER_PAYMENTS.filter(p => p.supplier_id === supId).slice(0, 3).forEach(p => {
+      items.push({
+        id: `pay-${p.payment_id}-${p.payment_status}`,
+        type: p.payment_status === 'Pending' ? 'warning' : 'success',
+        title: `${p.payment_status === 'Pending' ? 'Pending Payment' : 'Payment Settled'}: ${p.invoice_no}`,
+        body: `Rs. ${Number(p.net_payable || 0).toLocaleString()} (${p.total_leaf_kg} kg leaf).`,
+        time: p.pay_date,
+        page: 'supplier_payments',
+      });
+    });
+    TEA_COLLECTIONS.filter(c => c.supplier_id === supId).slice(0, 3).forEach(c => {
+      items.push({
+        id: `col-${c.collection_id}`,
+        type: 'info',
+        title: `Leaf Intake: ${c.slip_no}`,
+        body: `${c.net_weight} kg net leaf received.`,
+        time: `${c.date} ${c.time}`,
+        page: 'collection',
+      });
+    });
+    return items;
+  }
+
+  PRODUCTION_BATCHES.slice(0, 2).forEach(b => {
+    items.push({
+      id: `batch-${b.batch_id}-${b.batch_status}`,
+      type: b.batch_status === 'Completed' ? 'success' : 'info',
+      title: `Batch ${b.batch_code} ${b.batch_status}`,
+      body: `${b.input_qty} kg green leaf input.`,
+      time: b.prod_date,
+      page: 'production',
+    });
+  });
+  return items;
+}
+
+export default function TopHeader({ currentPage, user, theme, onToggleTheme, onNavigate }) {
   const page = PAGE_TITLES[currentPage] || PAGE_TITLES.dashboard;
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const [showNotif, setShowNotif]   = useState(false);
-  const [notifs, setNotifs]         = useState(SAMPLE_NOTIFICATIONS);
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifs, setNotifs] = useState([]);
+  const [notifSource, setNotifSource] = useState('Live MySQL');
+
+  const applyPrefsAndSet = useCallback((rawList) => {
+    const prefs = loadNotifPrefs(user);
+    const dismissedSet = new Set(prefs.dismissedIds);
+    const readSet = new Set(prefs.readIds);
+
+    const processed = (rawList || [])
+      .filter(n => !dismissedSet.has(n.id))
+      .map(n => ({ ...n, read: readSet.has(n.id) }));
+
+    setNotifs(processed);
+  }, [user]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    const liveData = await api.getNotifications();
+    if (Array.isArray(liveData)) {
+      setNotifSource('Live MySQL Alerts');
+      applyPrefsAndSet(liveData);
+    } else {
+      setNotifSource('Local Fallback Alerts');
+      applyPrefsAndSet(buildOfflineFallbackNotifications(user));
+    }
+  }, [user, applyPrefsAndSet]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const intervalId = setInterval(fetchNotifications, 30000);
+    const handleDataChanged = () => {
+      fetchNotifications();
+    };
+    window.addEventListener('teasync:data-changed', handleDataChanged);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('teasync:data-changed', handleDataChanged);
+    };
+  }, [fetchNotifications]);
 
   const unread = notifs.filter(n => !n.read).length;
 
-  const markAllRead = () => setNotifs(notifs.map(n => ({ ...n, read: true })));
-  const dismiss     = (id) => setNotifs(notifs.filter(n => n.id !== id));
+  const markAllRead = () => {
+    const prefs = loadNotifPrefs(user);
+    const nextReadIds = Array.from(new Set([...prefs.readIds, ...notifs.map(n => n.id)]));
+    saveNotifPrefs(user, { ...prefs, readIds: nextReadIds });
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const handleNotificationClick = (notif) => {
+    if (!notif.read) {
+      const prefs = loadNotifPrefs(user);
+      const nextReadIds = Array.from(new Set([...prefs.readIds, notif.id]));
+      saveNotifPrefs(user, { ...prefs, readIds: nextReadIds });
+      setNotifs(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    }
+    if (notif.page && onNavigate) {
+      onNavigate(notif.page);
+      setShowNotif(false);
+    }
+  };
+
+  const dismiss = (e, id) => {
+    e.stopPropagation();
+    const prefs = loadNotifPrefs(user);
+    saveNotifPrefs(user, {
+      readIds: Array.from(new Set([...prefs.readIds, id])),
+      dismissedIds: Array.from(new Set([...prefs.dismissedIds, id])),
+    });
+    setNotifs(prev => prev.filter(n => n.id !== id));
+  };
+
+  const toggleDropdown = () => {
+    const nextState = !showNotif;
+    setShowNotif(nextState);
+    if (nextState) {
+      fetchNotifications();
+    }
+  };
 
   return (
     <header className="top-header">
@@ -74,19 +211,19 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
           <button
             className="header-icon-btn"
             title="Notifications"
-            onClick={() => setShowNotif(!showNotif)}
+            onClick={toggleDropdown}
             style={{ position: 'relative' }}
           >
             <Bell size={18} />
             {unread > 0 && (
               <span style={{
                 position: 'absolute', top: 2, right: 2,
-                width: 16, height: 16, borderRadius: '50%',
+                minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
                 background: '#ef4444', color: '#fff',
                 fontSize: 9, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 lineHeight: 1,
-              }}>{unread}</span>
+              }}>{unread > 99 ? '99+' : unread}</span>
             )}
           </button>
 
@@ -100,7 +237,7 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
               />
               <div style={{
                 position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-                width: 340, zIndex: 999,
+                width: 350, zIndex: 999,
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 14,
@@ -117,10 +254,13 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
                   <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>
                     Notifications {unread > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: 11, marginLeft: 6 }}>{unread}</span>}
                   </span>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {unread > 0 && (
-                      <button onClick={markAllRead} style={{ fontSize: 11, color: '#10b981', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
-                        Mark all read
+                      <button
+                        onClick={markAllRead}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        <CheckCheck size={13} /> Mark all read
                       </button>
                     )}
                     <button onClick={() => setShowNotif(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -130,30 +270,41 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
                 </div>
 
                 {/* Notification List */}
-                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <div style={{ maxHeight: 340, overflowY: 'auto' }}>
                   {notifs.length === 0 ? (
                     <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                      No notifications
+                      No active notifications
                     </div>
                   ) : notifs.map(n => {
                     const Icon = typeIcon[n.type] || Info;
                     return (
-                      <div key={n.id} style={{
-                        display: 'flex', gap: 12, padding: '12px 16px',
-                        borderBottom: '1px solid var(--border-color)',
-                        background: n.read ? 'transparent' : 'rgba(16,185,129,0.04)',
-                        transition: 'background 0.2s',
-                        cursor: 'default',
-                      }}>
+                      <div
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        style={{
+                          display: 'flex', gap: 12, padding: '12px 16px',
+                          borderBottom: '1px solid var(--border-color)',
+                          background: n.read ? 'transparent' : 'rgba(16,185,129,0.06)',
+                          transition: 'background 0.2s',
+                          cursor: n.page ? 'pointer' : 'default',
+                        }}
+                      >
                         <div style={{ marginTop: 2, flexShrink: 0 }}>
-                          <Icon size={16} color={typeColor[n.type]} />
+                          <Icon size={16} color={typeColor[n.type] || '#3b82f6'} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: 'var(--text-primary)', marginBottom: 2 }}>{n.title}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />}
+                            <span style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: 'var(--text-primary)' }}>{n.title}</span>
+                          </div>
                           <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{n.body}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{n.time}</div>
                         </div>
-                        <button onClick={() => dismiss(n.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', alignSelf: 'flex-start', flexShrink: 0 }}>
+                        <button
+                          onClick={(e) => dismiss(e, n.id)}
+                          title="Dismiss notification"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', alignSelf: 'flex-start', flexShrink: 0 }}
+                        >
                           <X size={13} />
                         </button>
                       </div>
@@ -163,7 +314,7 @@ export default function TopHeader({ currentPage, user, theme, onToggleTheme }) {
 
                 {/* Footer */}
                 <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid var(--border-color)' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>TeaSyncPro Live Alerts</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notifSource}</span>
                 </div>
               </div>
             </>
