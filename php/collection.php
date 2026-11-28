@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($supplierId > 0 && $grossWeight > 0) {
         $stmt = $pdo->prepare("
-            INSERT INTO tea_collections (schedule_id, supplier_id, date, time, gross_weight, water_deduction_kg, net_weight, rate_id)
+            INSERT INTO tea_collection (schedule_id, supplier_id, date, time, gross_weight, water_deduction_kg, net_weight, rate_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         ");
         $stmt->execute([$scheduleId, $supplierId, $date, $time, $grossWeight, $waterDeduction, $netWeight]);
@@ -31,19 +31,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-$suppliers = $pdo->query("SELECT * FROM suppliers ORDER BY name ASC")->fetchAll();
-$schedules = $pdo->query("SELECT * FROM collection_schedules ORDER BY date DESC, route_name ASC")->fetchAll();
-$currentRate = $pdo->query("SELECT rate_per_kg FROM daily_leaf_rates ORDER BY effective_date DESC LIMIT 1")->fetchColumn() ?: 148.50;
+$suppliers = $pdo->query("SELECT * FROM supplier ORDER BY name ASC")->fetchAll();
+$schedules = $pdo->query("SELECT * FROM collection_schedule ORDER BY date DESC, route_name ASC")->fetchAll();
+$currentRate = $pdo->query("SELECT rate_per_kg FROM daily_leaf_rate ORDER BY effective_date DESC LIMIT 1")->fetchColumn() ?: 148.50;
 
 $search = trim($_GET['search'] ?? '');
 $routeFilter = trim($_GET['route'] ?? '');
 
 $queryStr = "
     SELECT c.*, s.name AS supplier_name, s.supplier_type, s.phone AS supplier_phone, cs.route_name, cs.vehicle_no, r.rate_per_kg
-    FROM tea_collections c
-    JOIN suppliers s ON c.supplier_id = s.supplier_id
-    JOIN collection_schedules cs ON c.schedule_id = cs.schedule_id
-    LEFT JOIN daily_leaf_rates r ON c.rate_id = r.rate_id
+    FROM tea_collection c
+    JOIN supplier s ON c.supplier_id = s.supplier_id
+    JOIN collection_schedule cs ON c.schedule_id = cs.schedule_id
+    LEFT JOIN daily_leaf_rate r ON c.rate_id = r.rate_id
     WHERE 1=1
 ";
 $params = [];

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Leaf, User, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Leaf, User, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft, Sun, Moon } from 'lucide-react';
 import { USERS, ROLES } from '../data/mockData';
 
 const ROLE_CREDENTIALS = [
@@ -7,6 +7,7 @@ const ROLE_CREDENTIALS = [
   { role: ROLES.FACTORY_MANAGER, username: 'manager01', password: 'pass123', display: 'Factory Manager' },
   { role: ROLES.WITHERING_OFFICER, username: 'wither01', password: 'pass123', display: 'Withering Officer' },
   { role: ROLES.ROLLING_OFFICER, username: 'rolling01', password: 'pass123', display: 'Rolling Officer' },
+  { role: ROLES.AERATION_OFFICER, username: 'aeration01', password: 'pass123', display: 'Aeration Officer' },
   { role: ROLES.DRYING_OFFICER, username: 'drying01', password: 'pass123', display: 'Drying Officer' },
   { role: ROLES.GRADING_OFFICER, username: 'grading01', password: 'pass123', display: 'Grading Officer' },
   { role: ROLES.FINANCE_OFFICER, username: 'finance01', password: 'pass123', display: 'Finance Officer' },
@@ -14,7 +15,7 @@ const ROLE_CREDENTIALS = [
   { role: ROLES.SUPPLIER, username: 'supplier01', password: 'pass123', display: 'Supplier' },
 ];
 
-export default function LoginPage({ onLogin, onBack }) {
+export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
   const [selectedRole, setSelectedRole] = useState(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -86,7 +87,34 @@ export default function LoginPage({ onLogin, onBack }) {
       </div>
 
       {/* Right Login Panel */}
-      <div className="login-right">
+      <div className="login-right" style={{ position: 'relative' }}>
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            className="theme-toggle-login-btn"
+            title={theme === 'light' ? 'Switch to Dark Mode (🌙)' : 'Switch to Light Mode (☀️)'}
+            style={{
+              position: 'absolute', top: 24, right: 28,
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--slate-850)', border: '1px solid var(--card-border)',
+              borderRadius: '10px', padding: '7px 12px', cursor: 'pointer',
+              color: 'var(--slate-200)', fontSize: '0.8rem', fontWeight: 600,
+              transition: 'all 0.2s', zIndex: 10
+            }}
+          >
+            {theme === 'light' ? (
+              <>
+                <Moon size={15} style={{ color: '#64748b' }} />
+                <span>Dark</span>
+              </>
+            ) : (
+              <>
+                <Sun size={15} style={{ color: '#fbbf24' }} />
+                <span>Light</span>
+              </>
+            )}
+          </button>
+        )}
         <div className="login-card">
           <div className="login-card-header">
             <h2>Welcome to<br />TeaSync Pro</h2>

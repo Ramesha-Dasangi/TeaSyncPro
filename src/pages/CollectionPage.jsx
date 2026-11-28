@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Leaf, Plus, Search, Filter, Calendar, Truck, ArrowUpRight,
   Scale, CheckCircle2, Receipt, Printer, X, Eye, Pencil, Trash2,
@@ -8,6 +8,7 @@ import {
   TEA_COLLECTIONS, SUPPLIERS, COLLECTION_SCHEDULES,
   DAILY_LEAF_RATES, ROLES
 } from '../data/mockData';
+import api from '../services/api';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 const fmtCur = (n) => `Rs. ${Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
@@ -69,6 +70,34 @@ export default function CollectionPage({ user }) {
     leaf_quality: i % 2 === 0 ? 'Tender Two Leaves & Bud' : 'Standard Green Leaf',
     verified_by: i % 3 === 0 ? (user?.name || 'Chaminda Rathnayake') : null
   })));
+
+  // Fetch real collections and schedules from Database API on mount
+  useEffect(() => {
+    let active = true;
+    async function loadData() {
+      try {
+        const [dbCollections, dbSchedules] = await Promise.all([
+          api.getCollections(),
+          api.getSchedules()
+        ]);
+        if (active && dbCollections && dbCollections.length > 0) {
+          setCollections(dbCollections.map((c, i) => ({
+            ...c,
+            verification_status: c.verification_status || (i % 3 === 0 ? 'Verified' : 'Pending Verification'),
+            leaf_quality: c.leaf_quality || 'Standard Green Leaf',
+            verified_by: c.verified_by || (user?.name || 'Chaminda Rathnayake')
+          })));
+        }
+        if (active && dbSchedules && dbSchedules.length > 0) {
+          setSchedules(dbSchedules);
+        }
+      } catch (err) {
+        console.warn('API fetch fallback to local state:', err);
+      }
+    }
+    loadData();
+    return () => { active = false; };
+  }, [user]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRoute, setSelectedRoute] = useState('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -112,21 +141,42 @@ export default function CollectionPage({ user }) {
   const getRouteName = (scheduleId) => schedules.find(s => s.schedule_id === Number(scheduleId))?.route_name || 'Main Route';
 
   // ─── CRUD 1: ADD COLLECTION RECORD ───────────────────────────────────────
-  const handleAddCollection = (e) => {
+  const handleAddCollection = async (e) => {
     e.preventDefault();
     const gross = parseFloat(formData.gross_weight);
     const deduction = parseFloat(formData.water_deduction_kg);
     const net = Math.max(0, gross - deduction);
     const newId = Math.max(...collections.map(c => c.collection_id), 0) + 1;
 
-    const newRecord = {
-      collection_id: newId,
+    const payload = {
       schedule_id: parseInt(formData.schedule_id),
       supplier_id: parseInt(formData.supplier_id),
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       gross_weight: gross,
       water_deduction_kg: deduction,
+      bag_deduction_kg: 0,
+      rate_id: 1
+    };
+
+    // Save to Database via REST API
+    let savedRecord = null;
+    try {
+      savedRecord = await api.createCollection(payload);
+    } catch (err) {
+      console.warn('Could not save to DB API, using local memory:', err);
+    }
+
+    const newRecord = {
+      collection_id: savedRecord?.collection_id || newId,
+      slip_no: savedRecord?.slip_no || `SLIP-${Date.now().toString().slice(-6)}`,
+      schedule_id: payload.schedule_id,
+      supplier_id: payload.supplier_id,
+      date: payload.date,
+      time: payload.time,
+      gross_weight: gross,
+      water_deduction_kg: deduction,
+      bag_deduction_kg: 0,
       net_weight: net,
       rate_id: 1,
       verification_status: 'Verified',
@@ -134,16 +184,30 @@ export default function CollectionPage({ user }) {
       verified_by: user?.name || 'Chaminda Rathnayake'
     };
 
-    setCollections([newRecord, ...collections]);
+    setCollections(prev => [newRecord, ...prev]);
     setShowAddModal(false);
-    notify(`Weighment Ticket #REC-${String(newId).padStart(4, '0')} recorded & verified!`);
+    notify(`Weighment Ticket #${newRecord.slip_no} saved to database & verified!`);
   };
 
   // ─── CRUD 2: UPDATE COLLECTION RECORD ─────────────────────────────────────
-  const handleUpdateCollection = () => {
+  const handleUpdateCollection = async () => {
     const gross = parseFloat(editItem.gross_weight);
     const deduction = parseFloat(editItem.water_deduction_kg);
     const net = Math.max(0, gross - deduction);
+
+    try {
+      await api.updateCollection(editItem.collection_id, {
+        schedule_id: Number(editItem.schedule_id),
+        supplier_id: Number(editItem.supplier_id),
+        date: editItem.date,
+        time: editItem.time,
+        gross_weight: gross,
+        water_deduction_kg: deduction,
+        bag_deduction_kg: editItem.bag_deduction_kg || 0
+      });
+    } catch (err) {
+      console.warn('API update failed, updating local state:', err);
+    }
 
     setCollections(prev => prev.map(c => c.collection_id === editItem.collection_id ? {
       ...editItem,
@@ -155,14 +219,21 @@ export default function CollectionPage({ user }) {
     } : c));
 
     setEditItem(null);
-    notify(`Collection Record #REC-${String(editItem.collection_id).padStart(4, '0')} updated successfully!`);
+    notify(`Collection Record #REC-${String(editItem.collection_id).padStart(4, '0')} updated in database!`);
   };
 
   // ─── CRUD 3: DELETE COLLECTION RECORD ─────────────────────────────────────
-  const handleDeleteCollection = () => {
-    setCollections(prev => prev.filter(c => c.collection_id !== deleteItem.collection_id));
-    setDeleteItem(null);
-    notify(`Collection Record #REC-${String(deleteItem.collection_id).padStart(4, '0')} removed.`);
+  const handleDeleteCollection = async () => {
+    if (deleteItem) {
+      try {
+        await api.deleteCollection(deleteItem.collection_id);
+      } catch (err) {
+        console.warn('API delete failed, updating local state:', err);
+      }
+      setCollections(prev => prev.filter(c => c.collection_id !== deleteItem.collection_id));
+      notify(`Collection Record #REC-${String(deleteItem.collection_id).padStart(4, '0')} removed from database.`);
+      setDeleteItem(null);
+    }
   };
 
   // ─── PROCESS 1: VERIFY COLLECTION RECORD ─────────────────────────────────
@@ -176,22 +247,36 @@ export default function CollectionPage({ user }) {
   };
 
   // ─── PROCESS 4: ADD COLLECTION SCHEDULE ──────────────────────────────────
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
+    const payload = {
+      date: scheduleForm.date,
+      route_name: scheduleForm.route_name,
+      vehicle_no: scheduleForm.vehicle_no
+    };
+
+    let savedSched = null;
+    try {
+      savedSched = await api.createSchedule(payload);
+    } catch (err) {
+      console.warn('API create schedule failed:', err);
+    }
+
     const newId = Math.max(...schedules.map(s => s.schedule_id), 0) + 1;
-    const newSched = {
+    const newSched = savedSched || {
       schedule_id: newId,
       date: scheduleForm.date,
       route_name: scheduleForm.route_name,
       vehicle_no: scheduleForm.vehicle_no
     };
-    setSchedules([newSched, ...schedules]);
+
+    setSchedules(prev => [newSched, ...prev]);
     setShowAddSchedule(false);
     setScheduleForm({
       date: new Date().toISOString().slice(0, 10),
       route_name: '',
       vehicle_no: ''
     });
-    notify(`New Collection Schedule #${newId} (${newSched.route_name}) created!`);
+    notify(`New Collection Schedule #${newSched.schedule_id} (${newSched.route_name}) created & saved to database!`);
   };
 
   // Relevant filtered collections

@@ -1,9 +1,9 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
 
-// SupplierPayment model - tracks monthly payments made to suppliers for their tea leaf deliveries
+// SupplierPayment model - tracks monthly settlement invoices/vouchers for suppliers
 // Finance officer calculates and records payments here based on collected quantities and daily rates
-// payment_status tells us whether the payment has been processed or is still pending
+// Captures invoice number, billing month, leaf weight, average rate, gross amount, deductions, and net payable
 const SupplierPayment = sequelize.define('SupplierPayment', {
 
   // Primary key - auto generated unique ID for each payment record
@@ -13,32 +13,75 @@ const SupplierPayment = sequelize.define('SupplierPayment', {
     autoIncrement: true
   },
 
+  // Official settlement invoice / voucher number (e.g., "INV-2026-09-001")
+  invoice_no: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    unique: true
+  },
+
   // Foreign key - which supplier this payment is going to
   supplier_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
 
-  // The date this payment was made or is scheduled for
+  // Billing month (e.g., "2026-09")
+  billing_month: {
+    type: DataTypes.STRING(20),
+    allowNull: false
+  },
+
+  // The date this payment was finalized or scheduled
   pay_date: {
     type: DataTypes.DATEONLY,
     allowNull: false
   },
 
-  // Total payment amount in LKR calculated from net_weight * rate_per_kg
-  amount: {
+  // Total net green leaf weight supplied in this billing month (in kg)
+  total_leaf_kg: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
+  },
+
+  // Weighted average leaf rate per kg for the billing month
+  avg_rate_per_kg: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
+  },
+
+  // Gross leaf value before deductions (total_leaf_kg * avg_rate_per_kg)
+  gross_amount: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false
   },
 
-  // Payment status - 'Pending' means not yet paid, 'Paid' means transferred
+  // Total deductions (fertilizer advances, cash advances, transport fees)
+  deductions: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  },
+
+  // Net amount payable to supplier after deductions (gross_amount - deductions)
+  net_payable: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false
+  },
+
+  // Payment method - 'Bank Transfer', 'Cash', 'Cheque'
+  payment_method: {
+    type: DataTypes.STRING(50),
+    defaultValue: 'Bank Transfer'
+  },
+
+  // Payment status - 'Pending', 'Paid', 'Cancelled'
   payment_status: {
     type: DataTypes.STRING(20),
     defaultValue: 'Pending'
   }
 
 }, {
-  tableName: 'supplier_payments',
+  tableName: 'supplier_payment',
   timestamps: false
 });
 
