@@ -2,23 +2,37 @@ import React, { useState, useEffect } from 'react';
 import {
   Leaf, ChevronRight, BarChart3, Truck, Factory, Package,
   Users, ShieldCheck, Star, ArrowRight, Play, CheckCircle,
-  Thermometer, Activity, Award, Sparkles, Clock, MapPin, Sun, Moon
+  Thermometer, Activity, Award, Sparkles, Clock, MapPin, Sun, Moon, Mail, Phone
 } from 'lucide-react';
 
 export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
   // animate stats counting up when page loads
   const [statsVisible, setStatsVisible] = useState(false);
-  const [counts, setCounts] = useState({ batches: 0, suppliers: 0, accuracy: 0, estates: 0 });
+  const [counts, setCounts] = useState({ batches: 0, suppliers: 0, accuracy: 98, estates: 0 });
+  const [dbTargets, setDbTargets] = useState({ batches: 0, suppliers: 0, accuracy: 98, estates: 0 });
   const [activeTab, setActiveTab] = useState('withering');
 
+  // Fetch real counts from DB via public endpoint
   useEffect(() => {
-    const timer = setTimeout(() => setStatsVisible(true), 400);
-    return () => clearTimeout(timer);
+    fetch('/api/dashboard/public-stats')
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(data => {
+        if (data) {
+          setDbTargets({
+            batches: data.totalBatches || 0,
+            suppliers: data.totalSuppliers || 0,
+            accuracy: 98,
+            estates: data.totalCollections || 0,
+          });
+        }
+        setTimeout(() => setStatsVisible(true), 400);
+      });
   }, []);
 
   useEffect(() => {
     if (!statsVisible) return;
-    const targets = { batches: 12903, suppliers: 847, accuracy: 98, estates: 14 };
+    const targets = dbTargets;
     const duration = 1800;
     const steps = 60;
     const interval = duration / steps;
@@ -36,7 +50,7 @@ export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
       if (step >= steps) clearInterval(timer);
     }, interval);
     return () => clearInterval(timer);
-  }, [statsVisible]);
+  }, [statsVisible, dbTargets]);
 
   const features = [
     {
@@ -289,10 +303,10 @@ export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
       {/* ── STATS SECTION ───────────────────────────── */}
       <section className="landing-stats" id="stats">
         {[
-          { val: counts.batches.toLocaleString(), label: 'Batches Monitored', suffix: '+' },
-          { val: counts.suppliers, label: 'Smallholder Suppliers', suffix: '+' },
+          { val: counts.batches.toLocaleString(), label: 'Batches Processed', suffix: '+' },
+          { val: counts.suppliers, label: 'Registered Suppliers', suffix: '+' },
           { val: counts.accuracy, label: 'Outturn Accuracy', suffix: '%' },
-          { val: counts.estates, label: 'Regional Estates Connected', suffix: '' },
+          { val: counts.estates, label: 'Tea Collections Recorded', suffix: '+' },
         ].map((s, i) => (
           <div className="landing-stat-card" key={i}>
             <div className="landing-stat-val">{s.val}{s.suffix}</div>
@@ -521,10 +535,26 @@ export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
             <a href="#features">Features</a>
             <a href="#reviews">Testimonials</a>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap', fontSize: '0.86rem' }}>
+            <a
+              href="mailto:teasyncpro.portal@gmail.com"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--emerald-400)', textDecoration: 'none', fontWeight: 600 }}
+            >
+              <Mail size={15} /> teasyncpro.portal@gmail.com
+            </a>
+            <a
+              href="https://wa.me/94725603073"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--emerald-400)', textDecoration: 'none', fontWeight: 600 }}
+            >
+              <Phone size={15} /> +94 72 560 3073
+            </a>
+          </div>
         </div>
         <div className="landing-footer-bottom">
           <p className="landing-footer-copy">
-            © 2026 TeaSyncPro · Ceylon Tea Factory &amp; Estate Management System · All rights reserved.
+            © 2026 TeaSyncPro · Ceylon Tea Factory &amp; Estate Management System · Support: teasyncpro.portal@gmail.com · +94 72 560 3073
           </p>
         </div>
       </footer>
