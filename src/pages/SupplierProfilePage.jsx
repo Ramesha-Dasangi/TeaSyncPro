@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User, Phone, Mail, MapPin, CreditCard, Truck, Calendar,
   ShieldCheck, Edit3, Trash2, AlertTriangle, CheckCircle2,
   Building, RefreshCw, X
 } from 'lucide-react';
 import { SUPPLIERS } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function SupplierProfilePage({ user, onLogout }) {
   // Find current supplier data or fallback to Supplier 1
@@ -28,8 +29,30 @@ export default function SupplierProfilePage({ user, onLogout }) {
     bank_account: supplier.bank_account || '8023451290',
   });
 
-  const handleUpdateProfile = (e) => {
+  useEffect(() => {
+    api.getSuppliers().then(data => {
+      if (data && data.length) {
+        const found = data.find(s => s.supplier_id === supplierId);
+        if (found) {
+          setSupplier({ ...found, join_date: found.registered_date || found.join_date, status: found.status || 'Active' });
+        }
+      }
+    });
+  }, [supplierId]);
+
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    const updatedPayload = {
+      name: formData.name,
+      supplier_type: supplier.supplier_type,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      bank_name: formData.bank_name,
+      bank_account: formData.bank_account,
+      transport_mode: formData.transport_mode
+    };
+    await api.updateSupplier(supplier.supplier_id, updatedPayload);
     setSupplier({
       ...supplier,
       ...formData,

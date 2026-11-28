@@ -230,7 +230,6 @@ export default function InventoryPage() {
   // ==========================================
   // 3. PRODUCTION BATCHES STATE
   // ==========================================
-  const [batchList, setBatchList] = useState(PRODUCTION_BATCHES);
   const [showAddBatchModal, setShowAddBatchModal] = useState(false);
   const [batchToEdit, setBatchToEdit] = useState(null);
   const [batchToDelete, setBatchToDelete] = useState(null);
