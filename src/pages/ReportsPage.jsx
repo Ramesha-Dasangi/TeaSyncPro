@@ -1,46 +1,63 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  FileText, Printer, Download, Filter,
-  Leaf, Factory, Package, DollarSign, ChevronDown, CheckCircle
+  Printer, Download, Filter,
+  Leaf, Factory, Package, DollarSign, CheckCircle
 } from 'lucide-react';
+import api from '../services/api';
 import {
-  TEA_COLLECTIONS, PRODUCTION_STAGE_LOGS, FINISHED_OUTPUTS, SUPPLIER_PAYMENTS,
-  SUPPLIERS, DAILY_LEAF_RATES, TEA_GRADES, PRODUCTION_STAGES, PRODUCTION_BATCHES,
-  COLLECTION_SCHEDULES
+  TEA_COLLECTIONS as MOCK_COLLECTIONS,
+  PRODUCTION_STAGE_LOGS as MOCK_STAGE_LOGS,
+  FINISHED_OUTPUTS as MOCK_OUTPUTS,
+  SUPPLIER_PAYMENTS as MOCK_PAYMENTS,
+  SUPPLIERS as MOCK_SUPPLIERS,
+  DAILY_LEAF_RATES as MOCK_RATES,
+  TEA_GRADES as MOCK_GRADES,
+  PRODUCTION_STAGES as MOCK_STAGES,
+  PRODUCTION_BATCHES as MOCK_BATCHES,
+  COLLECTION_SCHEDULES as MOCK_SCHEDULES
 } from '../data/mockData';
 
-const getSupplier = (id) => SUPPLIERS.find(s => s.supplier_id === id);
-const getGrade = (id) => TEA_GRADES.find(g => g.grade_id === id);
-const getStage = (id) => PRODUCTION_STAGES.find(s => s.stage_id === id);
-const getSchedule = (id) => COLLECTION_SCHEDULES.find(s => s.schedule_id === id);
-const currentRate = DAILY_LEAF_RATES[0].rate_per_kg;
+// ─── helpers ────────────────────────────────────────────────────────────────
+const findSupplier  = (list, id) => list.find(s => s.supplier_id === id);
+const findGrade     = (list, id) => list.find(g => g.grade_id    === id);
+const findStage     = (list, id) => list.find(s => s.stage_id    === id);
+const findSchedule  = (list, id) => list.find(s => s.schedule_id === id);
+const findBatch     = (list, id) => list.find(b => b.batch_id    === id);
 
-// leaf collection report
-function LeafCollectionReport() {
+// ─── Leaf Collection Report ───────────────────────────────────────────────
+function LeafCollectionReport({ collections, suppliers, schedules, rates }) {
   const [filterDate, setFilterDate] = useState('');
   const [filterType, setFilterType] = useState('All');
-  const printRef = useRef();
 
-  const filtered = TEA_COLLECTIONS.filter(col => {
-    const sup = getSupplier(col.supplier_id);
+  const currentRate = rates.length > 0 ? rates[0].rate_per_kg : 0;
+
+  const filtered = collections.filter(col => {
+    const sup  = findSupplier(suppliers, col.supplier_id);
     const dateOk = !filterDate || col.date === filterDate;
     const typeOk = filterType === 'All' || sup?.supplier_type === filterType;
     return dateOk && typeOk;
   });
 
-  const totalGross = filtered.reduce((s, c) => s + c.gross_weight, 0);
-  const totalNet = filtered.reduce((s, c) => s + c.net_weight, 0);
-  const totalDeduction = filtered.reduce((s, c) => s + c.water_deduction_kg, 0);
-  const totalValue = filtered.reduce((s, c) => s + c.net_weight * currentRate, 0);
+  const totalGross     = filtered.reduce((s, c) => s + (c.gross_weight       || 0), 0);
+  const totalNet       = filtered.reduce((s, c) => s + (c.net_weight         || 0), 0);
+  const totalDeduction = filtered.reduce((s, c) => s + (c.water_deduction_kg || 0), 0);
+  const totalValue     = filtered.reduce((s, c) => s + (c.net_weight         || 0) * currentRate, 0);
 
   const handlePrint = () => window.print();
 
   const handleCSV = () => {
     const headers = ['Date', 'Time', 'Supplier', 'Type', 'Route', 'Gross (kg)', 'Deduction (kg)', 'Net (kg)', 'Rate (Rs.)', 'Value (Rs.)'];
     const rows = filtered.map(c => {
-      const sup = getSupplier(c.supplier_id);
-      const sch = getSchedule(c.schedule_id);
-      return [c.date, c.time, sup?.name, sup?.supplier_type, sch?.route_name, c.gross_weight, c.water_deduction_kg.toFixed(2), c.net_weight.toFixed(2), currentRate, (c.net_weight * currentRate).toFixed(2)];
+      const sup = findSupplier(suppliers, c.supplier_id);
+      const sch = findSchedule(schedules, c.schedule_id);
+      return [
+        c.date, c.time, sup?.name, sup?.supplier_type, sch?.route_name,
+        c.gross_weight,
+        (c.water_deduction_kg || 0).toFixed(2),
+        (c.net_weight         || 0).toFixed(2),
+        currentRate,
+        ((c.net_weight || 0) * currentRate).toFixed(2)
+      ];
     });
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
     const a = document.createElement('a');
@@ -53,7 +70,7 @@ function LeafCollectionReport() {
     <div>
       <div className="print-header">
         <h1>🌿 TeaSync Pro</h1>
-        <p>Tea Leaf Collection & Intake Report</p>
+        <p>Tea Leaf Collection &amp; Intake Report</p>
         <p>Generated: {new Date().toLocaleString()}</p>
       </div>
 
@@ -108,25 +125,16 @@ function LeafCollectionReport() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Supplier</th>
-              <th>Type</th>
-              <th>Route</th>
-              <th>Gross (kg)</th>
-              <th>Deduction (kg)</th>
-              <th>Net (kg)</th>
-              <th>Rate (Rs.)</th>
-              <th>Value (Rs.)</th>
-              <th>Status</th>
+              <th>#</th><th>Date</th><th>Time</th><th>Supplier</th><th>Type</th>
+              <th>Route</th><th>Gross (kg)</th><th>Deduction (kg)</th><th>Net (kg)</th>
+              <th>Rate (Rs.)</th><th>Value (Rs.)</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((col, idx) => {
-              const sup = getSupplier(col.supplier_id);
-              const sch = getSchedule(col.schedule_id);
-              const value = col.net_weight * currentRate;
+              const sup   = findSupplier(suppliers, col.supplier_id);
+              const sch   = findSchedule(schedules, col.schedule_id);
+              const value = (col.net_weight || 0) * currentRate;
               return (
                 <tr key={col.collection_id}>
                   <td style={{ color: 'var(--slate-500)' }}>{idx + 1}</td>
@@ -139,9 +147,9 @@ function LeafCollectionReport() {
                     </span>
                   </td>
                   <td style={{ fontSize: '0.78rem', color: 'var(--slate-400)' }}>{sch?.route_name}</td>
-                  <td>{col.gross_weight.toLocaleString()}</td>
-                  <td style={{ color: 'var(--red-400)' }}>{col.water_deduction_kg.toFixed(2)}</td>
-                  <td style={{ color: 'var(--emerald-400)', fontWeight: 700 }}>{col.net_weight.toFixed(2)}</td>
+                  <td>{(col.gross_weight || 0).toLocaleString()}</td>
+                  <td style={{ color: 'var(--red-400)' }}>{(col.water_deduction_kg || 0).toFixed(2)}</td>
+                  <td style={{ color: 'var(--emerald-400)', fontWeight: 700 }}>{(col.net_weight || 0).toFixed(2)}</td>
                   <td>{currentRate}</td>
                   <td style={{ color: 'var(--amber-400)', fontWeight: 600 }}>
                     {value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -170,27 +178,37 @@ function LeafCollectionReport() {
   );
 }
 
-// production stage report
-function ProductionStageReport() {
+// ─── Production Stage Report ──────────────────────────────────────────────
+function ProductionStageReport({ stageLogs, batches, stages }) {
   const [filterBatch, setFilterBatch] = useState('All');
+
   const handlePrint = () => window.print();
   const handleCSV = () => {
-    const filteredLogs = filterBatch === 'All' ? PRODUCTION_STAGE_LOGS : PRODUCTION_STAGE_LOGS.filter(l => l.batch_id === parseInt(filterBatch));
+    const logs = filterBatch === 'All' ? stageLogs : stageLogs.filter(l => String(l.batch_id) === filterBatch);
     const headers = ['Stage Log ID', 'Batch ID', 'Stage', 'Machine No', 'Input (kg)', 'Output (kg)', 'Loss (kg)', 'Loss %', 'Time'];
-    const rows = filteredLogs.map(l => [l.stage_log_id, l.batch_id, getStage(l.stage_id)?.stage_name, l.machine_no, l.input_weight, l.output_weight, l.weight_loss, ((l.weight_loss / l.input_weight) * 100).toFixed(1) + '%', l.start_end_time]);
+    const rows = logs.map(l => [
+      l.stage_log_id, l.batch_id,
+      findStage(stages, l.stage_id)?.stage_name,
+      l.machine_no, l.input_weight, l.output_weight, l.weight_loss,
+      (((l.weight_loss || 0) / (l.input_weight || 1)) * 100).toFixed(1) + '%',
+      l.start_end_time
+    ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'ProductionStage_Report.csv'; a.click();
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'ProductionStage_Report.csv';
+    a.click();
   };
 
-  const filteredLogs = filterBatch === 'All' ? PRODUCTION_STAGE_LOGS : PRODUCTION_STAGE_LOGS.filter(l => l.batch_id === parseInt(filterBatch));
-  const totalLoss = filteredLogs.reduce((s, l) => s + l.weight_loss, 0);
-  const totalInput = filteredLogs.length > 0 ? filteredLogs.reduce((max, l) => l.stage_id === 1 ? l.input_weight : max, 0) : 0;
+  const filteredLogs = filterBatch === 'All'
+    ? stageLogs
+    : stageLogs.filter(l => String(l.batch_id) === filterBatch);
 
   return (
     <div>
       <div className="print-header">
         <h1>🌿 TeaSync Pro</h1>
-        <p>Factory Production & Stage Wastage Report</p>
+        <p>Factory Production &amp; Stage Wastage Report</p>
         <p>Generated: {new Date().toLocaleString()}</p>
       </div>
 
@@ -199,7 +217,7 @@ function ProductionStageReport() {
           <span className="filter-label">Batch:</span>
           <select className="form-select" value={filterBatch} onChange={e => setFilterBatch(e.target.value)}>
             <option>All</option>
-            {PRODUCTION_BATCHES.map(b => <option key={b.batch_id} value={b.batch_id}>Batch #{b.batch_id} — {b.prod_date}</option>)}
+            {batches.map(b => <option key={b.batch_id} value={String(b.batch_id)}>Batch #{b.batch_id} — {b.prod_date}</option>)}
           </select>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
@@ -209,9 +227,11 @@ function ProductionStageReport() {
       </div>
 
       <div className="summary-row" style={{ marginBottom: '20px' }}>
-        {PRODUCTION_STAGES.map(stage => {
-          const logs = filteredLogs.filter(l => l.stage_id === stage.stage_id);
-          const avgLoss = logs.length ? ((logs.reduce((s, l) => s + (l.weight_loss / l.input_weight), 0) / logs.length) * 100).toFixed(1) : '—';
+        {stages.map(stage => {
+          const logs    = filteredLogs.filter(l => l.stage_id === stage.stage_id);
+          const avgLoss = logs.length
+            ? ((logs.reduce((s, l) => s + ((l.weight_loss || 0) / (l.input_weight || 1)), 0) / logs.length) * 100).toFixed(1)
+            : '—';
           return (
             <div key={stage.stage_id} className="summary-stat">
               <div className="stat-value" style={{ color: 'var(--emerald-400)', fontSize: '1.1rem' }}>{avgLoss}%</div>
@@ -225,34 +245,26 @@ function ProductionStageReport() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Batch ID</th>
-              <th>Production Date</th>
-              <th>Stage</th>
-              <th>Machine No</th>
-              <th>Input (kg)</th>
-              <th>Output (kg)</th>
-              <th>Loss (kg)</th>
-              <th>Loss %</th>
-              <th>Status</th>
-              <th>Time Period</th>
+              <th>#</th><th>Batch ID</th><th>Production Date</th><th>Stage</th>
+              <th>Machine No</th><th>Input (kg)</th><th>Output (kg)</th><th>Loss (kg)</th>
+              <th>Loss %</th><th>Status</th><th>Time Period</th>
             </tr>
           </thead>
           <tbody>
             {filteredLogs.map((log, idx) => {
-              const batch = PRODUCTION_BATCHES.find(b => b.batch_id === log.batch_id);
-              const lossPercent = ((log.weight_loss / log.input_weight) * 100).toFixed(1);
-              const isActive = log.start_end_time.includes('...');
+              const batch       = findBatch(batches, log.batch_id);
+              const lossPercent = (((log.weight_loss || 0) / (log.input_weight || 1)) * 100).toFixed(1);
+              const isActive    = (log.start_end_time || '').includes('...');
               return (
                 <tr key={log.stage_log_id}>
                   <td style={{ color: 'var(--slate-500)' }}>{idx + 1}</td>
                   <td style={{ fontWeight: 600 }}>#{log.batch_id}</td>
                   <td>{batch?.prod_date}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--slate-200)' }}>{getStage(log.stage_id)?.stage_name}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--slate-200)' }}>{findStage(stages, log.stage_id)?.stage_name}</td>
                   <td><span className="badge badge-neutral">{log.machine_no}</span></td>
-                  <td>{log.input_weight.toLocaleString()}</td>
-                  <td style={{ color: 'var(--emerald-400)', fontWeight: 600 }}>{log.output_weight.toLocaleString()}</td>
-                  <td style={{ color: 'var(--red-400)', fontWeight: 600 }}>-{log.weight_loss}</td>
+                  <td>{(log.input_weight || 0).toLocaleString()}</td>
+                  <td style={{ color: 'var(--emerald-400)', fontWeight: 600 }}>{(log.output_weight || 0).toLocaleString()}</td>
+                  <td style={{ color: 'var(--red-400)', fontWeight: 600 }}>-{log.weight_loss || 0}</td>
                   <td>
                     <span className={`badge ${parseFloat(lossPercent) > 50 ? 'badge-warning' : parseFloat(lossPercent) > 10 ? 'badge-info' : 'badge-success'}`}>
                       {lossPercent}%
@@ -274,24 +286,34 @@ function ProductionStageReport() {
   );
 }
 
-// finished stock report
-function FinishedStockReport() {
+// ─── Finished Stock Report ────────────────────────────────────────────────
+function FinishedStockReport({ outputs, grades }) {
   const handlePrint = () => window.print();
   const handleCSV = () => {
     const headers = ['Output ID', 'Batch ID', 'Grade', 'Quantity (kg)', 'Unit Cost (Rs.)', 'Tax %', 'Total Value (Rs.)', 'Date'];
-    const rows = FINISHED_OUTPUTS.map(fo => [fo.output_id, fo.batch_id, getGrade(fo.grade_id)?.grade_name, fo.quantity, fo.unit_cost, fo.tax_percentage, (fo.quantity * fo.unit_cost * (1 + fo.tax_percentage / 100)).toFixed(0), fo.out_date]);
+    const rows = outputs.map(fo => [
+      fo.output_id, fo.batch_id,
+      findGrade(grades, fo.grade_id)?.grade_name,
+      fo.net_weight_kg ?? fo.quantity,
+      fo.unit_cost, fo.tax_percentage,
+      ((fo.net_weight_kg ?? fo.quantity ?? 0) * (fo.unit_cost || 0) * (1 + (fo.tax_percentage || 0) / 100)).toFixed(0),
+      fo.out_date
+    ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'FinishedStock_Report.csv'; a.click();
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'FinishedStock_Report.csv';
+    a.click();
   };
 
-  const totalKg = FINISHED_OUTPUTS.reduce((s, f) => s + f.quantity, 0);
-  const totalValue = FINISHED_OUTPUTS.reduce((s, f) => s + (f.quantity * f.unit_cost * (1 + f.tax_percentage / 100)), 0);
+  const totalKg    = outputs.reduce((s, f) => s + (f.net_weight_kg ?? f.quantity ?? 0), 0);
+  const totalValue = outputs.reduce((s, f) => s + ((f.net_weight_kg ?? f.quantity ?? 0) * (f.unit_cost || 0) * (1 + (f.tax_percentage || 0) / 100)), 0);
 
   return (
     <div>
       <div className="print-header">
         <h1>🌿 TeaSync Pro</h1>
-        <p>Finished Tea Stock & Grading Inventory Report</p>
+        <p>Finished Tea Stock &amp; Grading Inventory Report</p>
         <p>Generated: {new Date().toLocaleString()}</p>
       </div>
 
@@ -309,8 +331,8 @@ function FinishedStockReport() {
           <div className="stat-value" style={{ color: 'var(--amber-400)' }}>Rs. {totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
           <div className="stat-label">Total Stock Value (incl. Tax)</div>
         </div>
-        {TEA_GRADES.map(grade => {
-          const qty = FINISHED_OUTPUTS.filter(f => f.grade_id === grade.grade_id).reduce((s, f) => s + f.quantity, 0);
+        {grades.map(grade => {
+          const qty = outputs.filter(f => f.grade_id === grade.grade_id).reduce((s, f) => s + (f.net_weight_kg ?? f.quantity ?? 0), 0);
           if (!qty) return null;
           return (
             <div key={grade.grade_id} className="summary-stat">
@@ -325,21 +347,15 @@ function FinishedStockReport() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Batch ID</th>
-              <th>Date</th>
-              <th>Tea Grade</th>
-              <th>Grade Description</th>
-              <th>Quantity (kg)</th>
-              <th>Unit Cost (Rs.)</th>
-              <th>Tax %</th>
-              <th>Total Value (Rs.)</th>
+              <th>#</th><th>Batch ID</th><th>Date</th><th>Tea Grade</th><th>Grade Description</th>
+              <th>Quantity (kg)</th><th>Unit Cost (Rs.)</th><th>Tax %</th><th>Total Value (Rs.)</th>
             </tr>
           </thead>
           <tbody>
-            {FINISHED_OUTPUTS.map((fo, idx) => {
-              const grade = getGrade(fo.grade_id);
-              const totalVal = fo.quantity * fo.unit_cost * (1 + fo.tax_percentage / 100);
+            {outputs.map((fo, idx) => {
+              const grade    = findGrade(grades, fo.grade_id);
+              const qty      = fo.net_weight_kg ?? fo.quantity ?? 0;
+              const totalVal = qty * (fo.unit_cost || 0) * (1 + (fo.tax_percentage || 0) / 100);
               const gradeBadgeClass = fo.grade_id === 1 ? 'badge-success' : fo.grade_id === 2 ? 'badge-info' : fo.grade_id === 4 ? 'badge-purple' : 'badge-neutral';
               return (
                 <tr key={fo.output_id}>
@@ -348,9 +364,9 @@ function FinishedStockReport() {
                   <td>{fo.out_date}</td>
                   <td><span className={`badge ${gradeBadgeClass}`}>{grade?.grade_name}</span></td>
                   <td style={{ color: 'var(--slate-400)', fontSize: '0.78rem' }}>{grade?.description}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--emerald-400)' }}>{fo.quantity}</td>
-                  <td>{fo.unit_cost.toLocaleString()}</td>
-                  <td>{fo.tax_percentage}%</td>
+                  <td style={{ fontWeight: 700, color: 'var(--emerald-400)' }}>{qty}</td>
+                  <td>{(fo.unit_cost || 0).toLocaleString()}</td>
+                  <td>{fo.tax_percentage || 0}%</td>
                   <td style={{ color: 'var(--amber-400)', fontWeight: 700 }}>
                     {totalVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
@@ -374,28 +390,36 @@ function FinishedStockReport() {
   );
 }
 
-// supplier payment report
-function SupplierPaymentReport() {
+// ─── Supplier Payment Report ──────────────────────────────────────────────
+function SupplierPaymentReport({ payments, suppliers, rates }) {
   const handlePrint = () => window.print();
   const handleCSV = () => {
-    const headers = ['Payment ID', 'Supplier', 'Type', 'Pay Date', 'Amount (Rs.)', 'Status'];
-    const rows = SUPPLIER_PAYMENTS.map(p => {
-      const sup = getSupplier(p.supplier_id);
-      return [p.payment_id, sup?.name, sup?.supplier_type, p.pay_date, p.amount, p.payment_status];
+    const headers = ['Payment ID', 'Invoice No', 'Supplier', 'Type', 'Billing Month', 'Pay Date', 'Total Leaf (kg)', 'Avg Rate', 'Gross (Rs.)', 'Deductions', 'Net Payable', 'Method', 'Status'];
+    const rows = payments.map(p => {
+      const sup = findSupplier(suppliers, p.supplier_id);
+      return [
+        p.payment_id, p.invoice_no, sup?.name, sup?.supplier_type,
+        p.billing_month, p.pay_date, p.total_leaf_kg, p.avg_rate_per_kg,
+        p.gross_amount, p.deductions, p.net_payable,
+        p.payment_method, p.payment_status
+      ];
     });
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'SupplierPayments_Report.csv'; a.click();
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'SupplierPayments_Report.csv';
+    a.click();
   };
 
-  const totalPaid = SUPPLIER_PAYMENTS.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + p.amount, 0);
-  const totalPending = SUPPLIER_PAYMENTS.filter(p => p.payment_status === 'Pending').reduce((s, p) => s + p.amount, 0);
+  const totalPaid    = payments.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + (p.net_payable || p.amount || 0), 0);
+  const totalPending = payments.filter(p => p.payment_status === 'Pending').reduce((s, p) => s + (p.net_payable || p.amount || 0), 0);
+  const currentRate  = rates.length > 0 ? rates[0].rate_per_kg : '—';
 
-  // Daily Leaf Rates
   return (
     <div>
       <div className="print-header">
         <h1>🌿 TeaSync Pro</h1>
-        <p>Supplier Payment & Leaf Rate Costing Report</p>
+        <p>Supplier Payment &amp; Leaf Rate Costing Report</p>
         <p>Generated: {new Date().toLocaleString()}</p>
       </div>
 
@@ -414,7 +438,7 @@ function SupplierPaymentReport() {
           <div className="stat-label">Pending Payment</div>
         </div>
         <div className="summary-stat">
-          <div className="stat-value">{SUPPLIER_PAYMENTS.length}</div>
+          <div className="stat-value">{payments.length}</div>
           <div className="stat-label">Total Transactions</div>
         </div>
         <div className="summary-stat">
@@ -431,24 +455,28 @@ function SupplierPaymentReport() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Supplier</th>
-              <th>Type</th>
-              <th>Pay Date</th>
-              <th>Amount (Rs.)</th>
-              <th>Status</th>
+              <th>#</th><th>Invoice No</th><th>Supplier</th><th>Type</th><th>Billing Month</th>
+              <th>Pay Date</th><th>Total Leaf (kg)</th><th>Avg Rate</th><th>Gross (Rs.)</th>
+              <th>Deductions</th><th>Net Payable (Rs.)</th><th>Method</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {SUPPLIER_PAYMENTS.map((payment, idx) => {
-              const sup = getSupplier(payment.supplier_id);
+            {payments.map((payment, idx) => {
+              const sup = findSupplier(suppliers, payment.supplier_id);
               return (
                 <tr key={payment.payment_id}>
                   <td style={{ color: 'var(--slate-500)' }}>{idx + 1}</td>
+                  <td style={{ fontSize: '0.78rem', color: 'var(--slate-400)' }}>{payment.invoice_no}</td>
                   <td style={{ fontWeight: 600, color: 'var(--slate-200)' }}>{sup?.name}</td>
                   <td><span className={`badge ${sup?.supplier_type === 'Internal Plucker' ? 'badge-info' : 'badge-purple'}`}>{sup?.supplier_type}</span></td>
+                  <td>{payment.billing_month}</td>
                   <td>{payment.pay_date}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--amber-400)' }}>Rs. {payment.amount.toLocaleString()}</td>
+                  <td>{payment.total_leaf_kg}</td>
+                  <td>Rs. {payment.avg_rate_per_kg}</td>
+                  <td>Rs. {(payment.gross_amount || 0).toLocaleString()}</td>
+                  <td style={{ color: 'var(--red-400)' }}>-{(payment.deductions || 0).toLocaleString()}</td>
+                  <td style={{ fontWeight: 700, color: 'var(--amber-400)' }}>Rs. {(payment.net_payable || payment.amount || 0).toLocaleString()}</td>
+                  <td><span className="badge badge-neutral">{payment.payment_method || '—'}</span></td>
                   <td>
                     <span className={`badge ${payment.payment_status === 'Paid' ? 'badge-success' : 'badge-warning'}`}>
                       {payment.payment_status === 'Paid' ? <CheckCircle size={10} /> : null} {payment.payment_status}
@@ -471,7 +499,7 @@ function SupplierPaymentReport() {
             <tr><th>#</th><th>Effective Date</th><th>Rate per kg (Rs.)</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {DAILY_LEAF_RATES.map((rate, idx) => (
+            {rates.map((rate, idx) => (
               <tr key={rate.rate_id}>
                 <td style={{ color: 'var(--slate-500)' }}>{idx + 1}</td>
                 <td>{rate.effective_date}</td>
@@ -490,24 +518,71 @@ function SupplierPaymentReport() {
   );
 }
 
-// main reports component
+// ─── Main ReportsPage ─────────────────────────────────────────────────────
 const REPORT_TABS = [
-  { key: 'collection', label: 'Leaf Collection', icon: Leaf },
-  { key: 'production', label: 'Factory Production', icon: Factory },
-  { key: 'stock', label: 'Finished Stock', icon: Package },
-  { key: 'payments', label: 'Supplier Payments', icon: DollarSign },
+  { key: 'collection', label: 'Leaf Collection',   icon: Leaf     },
+  { key: 'production', label: 'Factory Production', icon: Factory  },
+  { key: 'stock',      label: 'Finished Stock',     icon: Package  },
+  { key: 'payments',   label: 'Supplier Payments',  icon: DollarSign },
 ];
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('collection');
+  const [loading, setLoading]     = useState(true);
+
+  // ── live data state ──
+  const [collections, setCollections] = useState([]);
+  const [suppliers,   setSuppliers]   = useState([]);
+  const [schedules,   setSchedules]   = useState([]);
+  const [rates,       setRates]       = useState([]);
+  const [stageLogs,   setStageLogs]   = useState([]);
+  const [batches,     setBatches]     = useState([]);
+  const [stages,      setStages]      = useState([]);
+  const [outputs,     setOutputs]     = useState([]);
+  const [grades,      setGrades]      = useState([]);
+  const [payments,    setPayments]    = useState([]);
+
+  useEffect(() => {
+    async function loadAll() {
+      setLoading(true);
+      const [cols, sups, scheds, rts, logs, bats, outs, gds, pays] = await Promise.all([
+        api.getCollections(),
+        api.getSuppliers(),
+        api.getSchedules(),
+        api.getRates(),
+        api.getStageLogs(),
+        api.getBatches(),
+        api.getFinishedOutputs(),
+        api.getTeaGrades(),
+        api.getSupplierPayments(),
+      ]);
+      setCollections(cols  || MOCK_COLLECTIONS);
+      setSuppliers(sups    || MOCK_SUPPLIERS);
+      setSchedules(scheds  || MOCK_SCHEDULES);
+      setRates(rts         || MOCK_RATES);
+      setStageLogs(logs    || MOCK_STAGE_LOGS);
+      setBatches(bats      || MOCK_BATCHES);
+      setStages(MOCK_STAGES);           // stages list from mockData (static reference data)
+      setOutputs(outs      || MOCK_OUTPUTS);
+      setGrades(gds        || MOCK_GRADES);
+      setPayments(pays     || MOCK_PAYMENTS);
+      setLoading(false);
+    }
+    loadAll();
+  }, []);
 
   const renderReport = () => {
+    if (loading) return (
+      <div style={{ textAlign: 'center', padding: '60px', color: 'var(--slate-400)' }}>
+        Loading report data from database…
+      </div>
+    );
     switch (activeTab) {
-      case 'collection': return <LeafCollectionReport />;
-      case 'production': return <ProductionStageReport />;
-      case 'stock': return <FinishedStockReport />;
-      case 'payments': return <SupplierPaymentReport />;
-      default: return null;
+      case 'collection': return <LeafCollectionReport collections={collections} suppliers={suppliers} schedules={schedules} rates={rates} />;
+      case 'production': return <ProductionStageReport stageLogs={stageLogs} batches={batches} stages={stages} />;
+      case 'stock':      return <FinishedStockReport outputs={outputs} grades={grades} />;
+      case 'payments':   return <SupplierPaymentReport payments={payments} suppliers={suppliers} rates={rates} />;
+      default:           return null;
     }
   };
 
@@ -515,7 +590,7 @@ export default function ReportsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Reports & Analytics</h2>
+          <h2>Reports &amp; Analytics</h2>
           <p>Generate, filter, print and export comprehensive estate reports</p>
         </div>
         <div className="page-header-actions no-print">

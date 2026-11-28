@@ -5,22 +5,14 @@ import { signToken, requireAuth, requireRole, rateLimitLogin } from '../middlewa
 
 const router = express.Router();
 
-function verifyPassword(password, storedHash, username) {
-  if (!password || !storedHash) return false;
+function verifyPassword(password, storedHash) {
+  if (!password || !storedHash || !storedHash.startsWith('scrypt:')) return false;
 
-  if (storedHash.startsWith('scrypt:')) {
-    const [, salt, keyHex] = storedHash.split(':');
-    const derived = crypto.scryptSync(password, salt, 64);
-    const keyBuf = Buffer.from(keyHex, 'hex');
-    return derived.length === keyBuf.length && crypto.timingSafeEqual(derived, keyBuf);
-  }
-
-  // Compatibility with seeded bcrypt placeholder hashes in teasyncpro.db
-  if (storedHash.startsWith('$2y$') || storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$')) {
-    return username === 'admin' ? password === 'admin123' : password === 'pass123';
-  }
-
-  return password === storedHash;
+  const [, salt, keyHex] = storedHash.split(':');
+  if (!salt || !keyHex) return false;
+  const derived = crypto.scryptSync(password, salt, 64);
+  const keyBuf = Buffer.from(keyHex, 'hex');
+  return derived.length === keyBuf.length && crypto.timingSafeEqual(derived, keyBuf);
 }
 
 // POST /api/auth/login
@@ -47,7 +39,7 @@ router.post('/login', rateLimitLogin, (req, res) => {
       LIMIT 1
     `, [username.trim()]);
 
-    if (!user || !verifyPassword(password, user.password_hash, user.username)) {
+    if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 

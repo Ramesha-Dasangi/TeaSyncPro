@@ -14,18 +14,18 @@ export const ROLES = {
 };
 
 export const USERS = [
-  { user_id: 1, username: 'admin', password: 'admin123', role: ROLES.ADMIN, employee_id: 1, name: 'Kamal Perera' },
-  { user_id: 2, username: 'manager01', password: 'pass123', role: ROLES.FACTORY_MANAGER, employee_id: 2, name: 'Nimal Silva' },
-  { user_id: 3, username: 'wither01', password: 'pass123', role: ROLES.WITHERING_OFFICER, employee_id: 3, name: 'Sunil Rajapaksa' },
-  { user_id: 4, username: 'rolling01', password: 'pass123', role: ROLES.ROLLING_OFFICER, employee_id: 4, name: 'Amara Dissanayake' },
-  { user_id: 5, username: 'aeration01', password: 'pass123', role: ROLES.AERATION_OFFICER, employee_id: 5, name: 'Priya Fernando' },
-  { user_id: 6, username: 'drying01', password: 'pass123', role: ROLES.DRYING_OFFICER, employee_id: 6, name: 'Ruwan Jayawardena' },
-  { user_id: 7, username: 'grading01', password: 'pass123', role: ROLES.GRADING_OFFICER, employee_id: 7, name: 'Dilini Senanayake' },
-  { user_id: 8, username: 'packaging01', password: 'pass123', role: ROLES.PACKAGING_OFFICER, employee_id: 8, name: 'Tharaka Bandara' },
-  { user_id: 9, username: 'inventory01', password: 'pass123', role: ROLES.INVENTORY_OFFICER, employee_id: 9, name: 'Kasun Wijesinghe' },
-  { user_id: 10, username: 'finance01', password: 'pass123', role: ROLES.FINANCE_OFFICER, employee_id: 10, name: 'Malini Gunasekara' },
-  { user_id: 11, username: 'collect01', password: 'pass123', role: ROLES.COLLECTION_OFFICER, employee_id: 11, name: 'Chaminda Rathnayake' },
-  { user_id: 12, username: 'supplier01', password: 'pass123', role: ROLES.SUPPLIER, employee_id: null, supplier_id: 1, name: 'Asela Kumara' },
+  { user_id: 1, username: 'admin', password_sha256: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', role: ROLES.ADMIN, employee_id: 1, name: 'Kamal Perera' },
+  { user_id: 2, username: 'manager01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.FACTORY_MANAGER, employee_id: 2, name: 'Nimal Silva' },
+  { user_id: 3, username: 'wither01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.WITHERING_OFFICER, employee_id: 3, name: 'Sunil Rajapaksa' },
+  { user_id: 4, username: 'rolling01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.ROLLING_OFFICER, employee_id: 4, name: 'Amara Dissanayake' },
+  { user_id: 5, username: 'aeration01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.AERATION_OFFICER, employee_id: 5, name: 'Priya Fernando' },
+  { user_id: 6, username: 'drying01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.DRYING_OFFICER, employee_id: 6, name: 'Ruwan Jayawardena' },
+  { user_id: 7, username: 'grading01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.GRADING_OFFICER, employee_id: 7, name: 'Dilini Senanayake' },
+  { user_id: 8, username: 'packaging01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.PACKAGING_OFFICER, employee_id: 8, name: 'Tharaka Bandara' },
+  { user_id: 9, username: 'inventory01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.INVENTORY_OFFICER, employee_id: 9, name: 'Kasun Wijesinghe' },
+  { user_id: 10, username: 'finance01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.FINANCE_OFFICER, employee_id: 10, name: 'Malini Gunasekara' },
+  { user_id: 11, username: 'collect01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.COLLECTION_OFFICER, employee_id: 11, name: 'Chaminda Rathnayake' },
+  { user_id: 12, username: 'supplier01', password_sha256: '9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c', role: ROLES.SUPPLIER, employee_id: null, supplier_id: 1, name: 'Asela Kumara' },
 ];
 
 export const EMPLOYEES = [

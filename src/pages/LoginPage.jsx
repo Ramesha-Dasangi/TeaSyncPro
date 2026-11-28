@@ -4,17 +4,23 @@ import { USERS, ROLES } from '../data/mockData';
 import { api } from '../services/api';
 
 const ROLE_CREDENTIALS = [
-  { role: ROLES.ADMIN, username: 'admin', password: 'admin123', display: 'Admin' },
-  { role: ROLES.FACTORY_MANAGER, username: 'manager01', password: 'pass123', display: 'Factory Manager' },
-  { role: ROLES.WITHERING_OFFICER, username: 'wither01', password: 'pass123', display: 'Withering Officer' },
-  { role: ROLES.ROLLING_OFFICER, username: 'rolling01', password: 'pass123', display: 'Rolling Officer' },
-  { role: ROLES.AERATION_OFFICER, username: 'aeration01', password: 'pass123', display: 'Aeration Officer' },
-  { role: ROLES.DRYING_OFFICER, username: 'drying01', password: 'pass123', display: 'Drying Officer' },
-  { role: ROLES.GRADING_OFFICER, username: 'grading01', password: 'pass123', display: 'Grading Officer' },
-  { role: ROLES.FINANCE_OFFICER, username: 'finance01', password: 'pass123', display: 'Finance Officer' },
-  { role: ROLES.COLLECTION_OFFICER, username: 'collect01', password: 'pass123', display: 'Collection Officer' },
-  { role: ROLES.SUPPLIER, username: 'supplier01', password: 'pass123', display: 'Supplier' },
+  { role: ROLES.ADMIN, username: 'admin', display: 'Admin' },
+  { role: ROLES.FACTORY_MANAGER, username: 'manager01', display: 'Factory Manager' },
+  { role: ROLES.WITHERING_OFFICER, username: 'wither01', display: 'Withering Officer' },
+  { role: ROLES.ROLLING_OFFICER, username: 'rolling01', display: 'Rolling Officer' },
+  { role: ROLES.AERATION_OFFICER, username: 'aeration01', display: 'Aeration Officer' },
+  { role: ROLES.DRYING_OFFICER, username: 'drying01', display: 'Drying Officer' },
+  { role: ROLES.GRADING_OFFICER, username: 'grading01', display: 'Grading Officer' },
+  { role: ROLES.FINANCE_OFFICER, username: 'finance01', display: 'Finance Officer' },
+  { role: ROLES.COLLECTION_OFFICER, username: 'collect01', display: 'Collection Officer' },
+  { role: ROLES.SUPPLIER, username: 'supplier01', display: 'Supplier' },
 ];
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
   const [selectedRole, setSelectedRole] = useState(null);
@@ -27,7 +33,7 @@ export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
   const handleRoleSelect = (rc) => {
     setSelectedRole(rc);
     setUsername(rc.username);
-    setPassword(rc.password);
+    setPassword('');
     setError('');
   };
 
@@ -48,9 +54,11 @@ export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
     }
 
     // Fallback when API server is offline
-    const user = USERS.find(u => u.username === username && u.password === password);
+    const passwordHash = await sha256Hex(password);
+    const user = USERS.find(u => u.username === username && u.password_sha256 === passwordHash);
     if (user) {
-      onLogin(user);
+      const { password_sha256: _ignored, ...safeUser } = user;
+      onLogin(safeUser);
     } else {
       setError('Invalid username or password. Please try again.');
       setLoading(false);
@@ -219,7 +227,7 @@ export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
           </form>
 
           <div className="login-demo-hint">
-            Demo: Select any role above → credentials auto-fill →{' '}
+            Select a role above to fill username, then enter your password and{' '}
             <span>click Sign In</span>
           </div>
         </div>
