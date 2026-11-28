@@ -60,14 +60,7 @@ export default function FinancePage({ user, onNavigate }) {
   const [notification, setNotification] = useState('');
 
   // ─── STATE 1: SUPPLIER PAYMENTS ──────────────────────────────────────────
-  const [payments, setPayments] = useState(SUPPLIER_PAYMENTS.map(p => ({
-    ...p,
-    method: 'Bank Transfer',
-    ref_no: `TXN-2026-00${p.payment_id}`,
-    gross_amount: p.amount + 4500,
-    deductions: 4500,
-    notes: 'Monthly leaf supply settlement'
-  })));
+  const [payments, setPayments] = useState([]);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [editPayment, setEditPayment] = useState(null);
@@ -75,7 +68,7 @@ export default function FinancePage({ user, onNavigate }) {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 
   // ─── STATE 2: DAILY RATES ────────────────────────────────────────────────
-  const [dailyRates, setDailyRates] = useState([...DAILY_LEAF_RATES].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date)));
+  const [dailyRates, setDailyRates] = useState([]);
   const [showAddRate, setShowAddRate] = useState(false);
   const [rateForm, setRateForm] = useState({
     effective_date: new Date().toISOString().slice(0, 10),
@@ -84,8 +77,8 @@ export default function FinancePage({ user, onNavigate }) {
   });
 
   // ─── STATE 3: SUPPLIERS, COLLECTIONS & SALES INVOICES (from DB) ──────────
-  const [suppliers, setSuppliers] = useState(SUPPLIERS);
-  const [collections, setCollections] = useState(TEA_COLLECTIONS);
+  const [suppliers, setSuppliers] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [salesInvoices, setSalesInvoices] = useState([]);
   const [showAddInvoice, setShowAddInvoice] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({
@@ -963,6 +956,9 @@ export default function FinancePage({ user, onNavigate }) {
               <h2 style={{ fontSize: 18, fontWeight: 900, color: '#10b981', margin: 0 }}>TEASYNC PRO ESTATE</h2>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
                 OFFICIAL SUPPLIER SETTLEMENT VOUCHER
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                teasyncpro.portal@gmail.com &bull; +94 72 560 3073
               </div>
               <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, marginTop: 6, color: 'var(--text-primary)' }}>
                 VOUCHER #{selectedVoucher.ref_no || `PAY-2026-${selectedVoucher.payment_id}`}
