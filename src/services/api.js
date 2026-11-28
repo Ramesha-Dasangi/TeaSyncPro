@@ -8,6 +8,12 @@ const TOKEN_KEY = 'teasync_token';
 
 let authToken = typeof window !== 'undefined' ? window.sessionStorage.getItem(TOKEN_KEY) : null;
 
+function emitDataChanged(action) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('teasync:data-changed', { detail: { action } }));
+  }
+}
+
 export function setAuthToken(token) {
   authToken = token || null;
   if (typeof window !== 'undefined') {
@@ -47,7 +53,7 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // ─── COLLECTIONS ──────────────────────────────────────────
+  // COLLECTIONS
   async getCollections() {
     const data = await request('/collections');
     return data || MOCK.TEA_COLLECTIONS;
@@ -58,20 +64,25 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(collectionData)
     });
+    if (res) emitDataChanged('collection:create');
     return res;
   },
 
   async updateCollection(id, collectionData) {
-    return await request(`/collections/${id}`, {
+    const res = await request(`/collections/${id}`, {
       method: 'PUT',
       body: JSON.stringify(collectionData)
     });
+    if (res) emitDataChanged('collection:update');
+    return res;
   },
 
   async deleteCollection(id) {
-    return await request(`/collections/${id}`, {
+    const res = await request(`/collections/${id}`, {
       method: 'DELETE'
     });
+    if (res) emitDataChanged('collection:delete');
+    return res;
   },
 
   async getSchedules() {
@@ -80,10 +91,12 @@ export const api = {
   },
 
   async createSchedule(scheduleData) {
-    return await request('/collections/meta/schedules', {
+    const res = await request('/collections/meta/schedules', {
       method: 'POST',
       body: JSON.stringify(scheduleData)
     });
+    if (res) emitDataChanged('schedule:create');
+    return res;
   },
 
   async getRates() {
@@ -92,13 +105,15 @@ export const api = {
   },
 
   async createRate(rateData) {
-    return await request('/collections/meta/rates', {
+    const res = await request('/collections/meta/rates', {
       method: 'POST',
       body: JSON.stringify(rateData)
     });
+    if (res) emitDataChanged('rate:create');
+    return res;
   },
 
-  // ─── SUPPLIERS ────────────────────────────────────────────
+  // SUPPLIERS 
   async getSuppliers() {
     const data = await request('/suppliers');
     return data || MOCK.SUPPLIERS;
@@ -124,24 +139,28 @@ export const api = {
     });
   },
 
-  // ─── PRODUCTION BATCHES & STAGES ─────────────────────────
+  // PRODUCTION BATCHES & STAGES
   async getBatches() {
     const data = await request('/batches');
     return data || MOCK.PRODUCTION_BATCHES;
   },
 
   async createBatch(batchData) {
-    return await request('/batches', {
+    const res = await request('/batches', {
       method: 'POST',
       body: JSON.stringify(batchData)
     });
+    if (res) emitDataChanged('batch:create');
+    return res;
   },
 
   async updateBatch(id, batchData) {
-    return await request(`/batches/${id}`, {
+    const res = await request(`/batches/${id}`, {
       method: 'PUT',
       body: JSON.stringify(batchData)
     });
+    if (res) emitDataChanged('batch:update');
+    return res;
   },
 
   async getStageLogs() {
@@ -150,10 +169,12 @@ export const api = {
   },
 
   async createStageLog(logData) {
-    return await request('/batches/logs', {
+    const res = await request('/batches/logs', {
       method: 'POST',
       body: JSON.stringify(logData)
     });
+    if (res) emitDataChanged('stage:create');
+    return res;
   },
 
   async getProductionStages() {
@@ -161,23 +182,27 @@ export const api = {
     return data || MOCK.PRODUCTION_STAGES;
   },
 
-  // ─── GRADING & FINISHED GOODS ─────────────────────────────
+  // GRADING & FINISHED GOODS
   async getFinishedOutputs() {
     const data = await request('/grading');
     return data || MOCK.FINISHED_OUTPUTS;
   },
 
   async createFinishedOutput(outputData) {
-    return await request('/grading', {
+    const res = await request('/grading', {
       method: 'POST',
       body: JSON.stringify(outputData)
     });
+    if (res) emitDataChanged('grading:create');
+    return res;
   },
 
   async deleteFinishedOutput(id) {
-    return await request(`/grading/${id}`, {
+    const res = await request(`/grading/${id}`, {
       method: 'DELETE'
     });
+    if (res) emitDataChanged('grading:delete');
+    return res;
   },
 
   async getTeaGrades() {
@@ -185,27 +210,31 @@ export const api = {
     return data || MOCK.TEA_GRADES;
   },
 
-  // ─── FINANCE & PAYMENTS ───────────────────────────────────
+  // FINANCE & PAYMENTS
   async getSupplierPayments() {
     const data = await request('/finance/payments');
     return data || MOCK.SUPPLIER_PAYMENTS;
   },
 
   async createSupplierPayment(paymentData) {
-    return await request('/finance/payments', {
+    const res = await request('/finance/payments', {
       method: 'POST',
       body: JSON.stringify(paymentData)
     });
+    if (res) emitDataChanged('payment:create');
+    return res;
   },
 
   async updatePaymentStatus(id, payment_status) {
-    return await request(`/finance/payments/${id}/status`, {
+    const res = await request(`/finance/payments/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ payment_status })
     });
+    if (res) emitDataChanged('payment:update');
+    return res;
   },
 
-  // ─── EMPLOYEES & ATTENDANCE ───────────────────────────────
+  // EMPLOYEES & ATTENDANCE
   async getEmployees() {
     const data = await request('/employees');
     return data || MOCK.EMPLOYEES;
@@ -243,32 +272,45 @@ export const api = {
     });
   },
 
-  // ─── SALES INVOICES ───────────────────────────────────────
+  // SALES INVOICES 
   async getSalesInvoices() {
     const data = await request('/sales');
     return data || [];
   },
 
   async createSalesInvoice(invoiceData) {
-    return await request('/sales', {
+    const res = await request('/sales', {
       method: 'POST',
       body: JSON.stringify(invoiceData)
     });
+    if (res) emitDataChanged('sales:create');
+    return res;
   },
 
   async updateSalesInvoiceStatus(id, payment_status) {
-    return await request(`/sales/${id}/status`, {
+    const res = await request(`/sales/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ payment_status })
     });
+    if (res) emitDataChanged('sales:update');
+    return res;
   },
 
-  // ─── DASHBOARD SUMMARY ────────────────────────────────────
+  // DASHBOARD SUMMARY & LIVE NOTIFICATIONS
   async getDashboardSummary() {
     return await request('/dashboard/summary');
   },
 
-  // ─── AUTHENTICATION ───────────────────────────────────────
+  async getNotifications() {
+    return await request('/dashboard/notifications');
+  },
+
+  // AUTHENTICATION
+  async getUsers() {
+    const data = await request('/auth/users');
+    return data || MOCK.USERS.map(({ password_sha256: _ignored, ...u }) => u);
+  },
+
   async login(username, password) {
     try {
       const res = await fetch(`${BASE_URL}/auth/login`, {
@@ -289,6 +331,36 @@ export const api = {
     } catch (err) {
       console.warn('[API] Auth offline, falling back to local users:', err.message);
       return null;
+    }
+  },
+
+  async requestPasswordReset(username, email) {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data.error || 'Could not process password reset request.' };
+      return data;
+    } catch {
+      return { error: 'Backend server is offline. Start the server to reset passwords.' };
+    }
+  },
+
+  async resetPassword(username, code, newPassword) {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, code, newPassword })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data.error || 'Password reset failed.' };
+      return data;
+    } catch {
+      return { error: 'Backend server is offline. Start the server to reset passwords.' };
     }
   },
 
