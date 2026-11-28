@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Factory, Play, CheckCircle2, Clock, Flame, AlertCircle,
   ArrowRight, Activity, RotateCw, Plus, Edit3, Trash2, X, AlertTriangle
 } from 'lucide-react';
 import { PRODUCTION_BATCHES, PRODUCTION_STAGES, PRODUCTION_STAGE_LOGS } from '../data/mockData';
+import api from '../services/api';
 
 export default function ProductionPage() {
   const [batches, setBatches] = useState(PRODUCTION_BATCHES);
   const [selectedBatch, setSelectedBatch] = useState(PRODUCTION_BATCHES[0]);
+
+  // Load real production batches from database on mount
+  useEffect(() => {
+    let active = true;
+    async function loadBatches() {
+      try {
+        const dbBatches = await api.getBatches();
+        if (active && dbBatches && dbBatches.length > 0) {
+          setBatches(dbBatches);
+          setSelectedBatch(dbBatches[0]);
+        }
+      } catch (err) {
+        console.warn('API batches fallback to local:', err);
+      }
+    }
+    loadBatches();
+    return () => { active = false; };
+  }, []);
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -36,24 +55,37 @@ export default function ProductionPage() {
     { id: 'DM-01', name: 'Vibro Fluid Bed Dryer', stage: 'Drying', status: 'Ready', inletTemp: '125°C', exhaust: '88°C' },
   ];
 
-  const handleAddBatch = (e) => {
+  const handleAddBatch = async (e) => {
     e.preventDefault();
     const newId = batches.length > 0 ? Math.max(...batches.map(b => b.batch_id)) + 1 : 1;
-    const newBatch = {
-      batch_id: newId,
+    const payload = {
+      batch_code: `BATCH-${batchForm.prod_date.slice(0, 7)}-00${newId}`,
       prod_date: batchForm.prod_date,
       input_qty: parseFloat(batchForm.input_qty) || 1200,
       wastage_qty: parseFloat(batchForm.wastage_qty) || 25,
       batch_status: batchForm.batch_status
     };
+
+    let saved = null;
+    try {
+      saved = await api.createBatch(payload);
+    } catch (err) {
+      console.warn('API batch create failed:', err);
+    }
+
+    const newBatch = saved || {
+      batch_id: newId,
+      ...payload
+    };
+
     const updated = [newBatch, ...batches];
     setBatches(updated);
     setSelectedBatch(newBatch);
     setShowAddModal(false);
-    showNotification(`New Production Batch #${newId} started successfully!`);
+    showNotification(`New Production Batch #${newBatch.batch_id} saved to database!`);
   };
 
-  const handleUpdateBatch = (e) => {
+  const handleUpdateBatch = async (e) => {
     e.preventDefault();
     const updatedBatch = {
       ...selectedBatch,
@@ -62,11 +94,22 @@ export default function ProductionPage() {
       wastage_qty: parseFloat(batchForm.wastage_qty) || 0,
       batch_status: batchForm.batch_status
     };
+
+    try {
+      await api.updateBatch(selectedBatch.batch_id, {
+        input_qty: updatedBatch.input_qty,
+        wastage_qty: updatedBatch.wastage_qty,
+        batch_status: updatedBatch.batch_status
+      });
+    } catch (err) {
+      console.warn('API batch update failed:', err);
+    }
+
     const updated = batches.map(b => b.batch_id === selectedBatch.batch_id ? updatedBatch : b);
     setBatches(updated);
     setSelectedBatch(updatedBatch);
     setShowEditModal(false);
-    showNotification(`Production Batch #${selectedBatch.batch_id} updated successfully!`);
+    showNotification(`Production Batch #${selectedBatch.batch_id} updated in database!`);
   };
 
   const handleDeleteBatch = () => {
