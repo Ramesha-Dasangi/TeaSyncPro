@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -11,53 +11,58 @@ import {
   TEA_COLLECTIONS, PRODUCTION_BATCHES, PRODUCTION_STAGE_LOGS,
   FINISHED_OUTPUTS, DAILY_LEAF_RATES, SUPPLIERS, PRODUCTION_STAGES, TEA_GRADES
 } from '../data/mockData';
+import { api } from '../services/api';
 
-// helper functions
-const getSupplier = (id) => SUPPLIERS.find(s => s.supplier_id === id);
-const getStage = (id) => PRODUCTION_STAGES.find(s => s.stage_id === id);
-const getGrade = (id) => TEA_GRADES.find(g => g.grade_id === id);
-
-// Compute daily totals for last 7 days
-const buildDailyChartData = () => {
+// Compute daily totals for last 7 days from live collections
+const buildDailyChartData = (collectionsList, suppliersList) => {
+  const dates = collectionsList.map(c => c.date).filter(Boolean).sort();
+  const anchorStr = dates.length > 0 ? dates[dates.length - 1] : '2026-09-21';
   const days = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date('2026-09-21');
+    const d = new Date(anchorStr);
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
     const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-    const dayCols = TEA_COLLECTIONS.filter(c => c.date === dateStr);
+    const dayCols = collectionsList.filter(c => c.date === dateStr);
     const internal = dayCols.filter(c => {
-      const s = getSupplier(c.supplier_id);
-      return s?.supplier_type === 'Internal Plucker';
-    }).reduce((sum, c) => sum + c.net_weight, 0);
+      const s = suppliersList.find(sup => sup.supplier_id === c.supplier_id);
+      const type = c.supplier_type || s?.supplier_type;
+      return type === 'Internal Plucker';
+    }).reduce((sum, c) => sum + (c.net_weight || 0), 0);
     const external = dayCols.filter(c => {
-      const s = getSupplier(c.supplier_id);
-      return s?.supplier_type === 'Commercial';
-    }).reduce((sum, c) => sum + c.net_weight, 0);
+      const s = suppliersList.find(sup => sup.supplier_id === c.supplier_id);
+      const type = c.supplier_type || s?.supplier_type;
+      return type === 'Commercial';
+    }).reduce((sum, c) => sum + (c.net_weight || 0), 0);
     days.push({ day: dayLabel, internal: Math.round(internal), external: Math.round(external), total: Math.round(internal + external) });
   }
   return days;
 };
 
 // Stage loss chart data
-const buildStageLossData = () => {
-  const batch2Logs = PRODUCTION_STAGE_LOGS.filter(l => l.batch_id === 2);
-  return batch2Logs.map(log => ({
-    stage: getStage(log.stage_id)?.stage_name?.split('/')[0] || 'Stage',
-    inputWeight: log.input_weight,
-    outputWeight: log.output_weight,
-    loss: log.weight_loss,
-    lossPercent: ((log.weight_loss / log.input_weight) * 100).toFixed(1)
-  }));
+const buildStageLossData = (logsList, stagesList) => {
+  const batchLogs = logsList.filter(l => l.batch_id === 2);
+  const targetLogs = batchLogs.length > 0 ? batchLogs : logsList.slice(0, 5);
+  return targetLogs.map(log => {
+    const stageName = log.stage_name || stagesList.find(s => s.stage_id === log.stage_id)?.stage_name || 'Stage';
+    return {
+      stage: stageName.split('/')[0],
+      inputWeight: log.input_weight || 0,
+      outputWeight: log.output_weight || 0,
+      loss: log.weight_loss || 0,
+      lossPercent: log.input_weight ? (((log.weight_loss || 0) / log.input_weight) * 100).toFixed(1) : '0.0'
+    };
+  });
 };
 
 // Grade pie data
-const buildGradePieData = () => {
+const buildGradePieData = (outputsList, gradesList) => {
   const gradeMap = {};
-  FINISHED_OUTPUTS.forEach(fo => {
-    const g = getGrade(fo.grade_id);
-    if (!gradeMap[fo.grade_id]) gradeMap[fo.grade_id] = { name: g?.grade_name || 'Unknown', value: 0 };
-    gradeMap[fo.grade_id].value += fo.quantity;
+  outputsList.forEach(fo => {
+    const gName = fo.grade_name || gradesList.find(g => g.grade_id === fo.grade_id)?.grade_name || 'Unknown';
+    const qty = fo.net_weight_kg ?? fo.quantity ?? fo.quantity_bags ?? 0;
+    if (!gradeMap[fo.grade_id]) gradeMap[fo.grade_id] = { name: gName, value: 0 };
+    gradeMap[fo.grade_id].value += qty;
   });
   return Object.values(gradeMap);
 };
@@ -79,12 +84,12 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 // pipeline component
-function ProductionPipeline({ batch, logs }) {
+function ProductionPipeline({ batch, logs, stages }) {
   const stageEmojis = ['🌿', '🔄', '💨', '🔥', '⭐'];
   const stageStatus = (stageId) => {
     const log = logs.find(l => l.batch_id === batch.batch_id && l.stage_id === stageId);
     if (!log) return 'pending';
-    if (log.start_end_time.includes('...')) return 'active';
+    if (log.start_end_time?.includes('...') || !log.end_time) return 'active';
     return 'completed';
   };
 
@@ -100,7 +105,7 @@ function ProductionPipeline({ batch, logs }) {
         </span>
       </div>
       <div className="pipeline-container">
-        {PRODUCTION_STAGES.map((stage, idx) => {
+        {stages.map((stage, idx) => {
           const status = stageStatus(stage.stage_id);
           const log = logs.find(l => l.batch_id === batch.batch_id && l.stage_id === stage.stage_id);
           return (
@@ -108,7 +113,7 @@ function ProductionPipeline({ batch, logs }) {
               <div className={`stage-circle ${status}`}>
                 <span>{stageEmojis[idx]}</span>
               </div>
-              {idx < PRODUCTION_STAGES.length - 1 && (
+              {idx < stages.length - 1 && (
                 <div style={{ position: 'absolute', top: '30px', right: '-20px', zIndex: 2 }}>
                   <ChevronRight size={16} color={status === 'completed' ? 'var(--emerald-500)' : 'var(--slate-600)'} />
                 </div>
@@ -116,8 +121,8 @@ function ProductionPipeline({ batch, logs }) {
               <div className="stage-name">{stage.stage_name}</div>
               {log ? (
                 <>
-                  <div className="stage-weight">{log.output_weight.toLocaleString()} kg out</div>
-                  <div className="stage-loss">-{log.weight_loss} kg ({((log.weight_loss / log.input_weight) * 100).toFixed(0)}% loss)</div>
+                  <div className="stage-weight">{(log.output_weight || 0).toLocaleString()} kg out</div>
+                  <div className="stage-loss">-{log.weight_loss || 0} kg ({log.input_weight ? (((log.weight_loss || 0) / log.input_weight) * 100).toFixed(0) : 0}% loss)</div>
                   <div style={{ marginTop: '6px' }}>
                     <span style={{
                       fontSize: '0.65rem', padding: '2px 8px', borderRadius: '20px',
@@ -141,22 +146,47 @@ function ProductionPipeline({ batch, logs }) {
 
 // main dashboard component
 export default function Dashboard() {
-  const todayCollections = TEA_COLLECTIONS.filter(c => c.date === '2026-09-21');
-  const todayGross = todayCollections.reduce((s, c) => s + c.gross_weight, 0);
-  const todayNet = todayCollections.reduce((s, c) => s + c.net_weight, 0);
-  const todayDeduction = todayCollections.reduce((s, c) => s + c.water_deduction_kg, 0);
-  const currentRate = DAILY_LEAF_RATES[0].rate_per_kg;
+  // ─── API State ─────────────────────────────────────────────
+  const [dbSummary, setDbSummary] = useState(null);
+  const [collections, setCollections] = useState(TEA_COLLECTIONS);
+  const [suppliers, setSuppliers] = useState(SUPPLIERS);
+  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
+  const [stages, setStages] = useState(PRODUCTION_STAGES);
+  const [stageLogs, setStageLogs] = useState(PRODUCTION_STAGE_LOGS);
+  const [finishedOutputs, setFinishedOutputs] = useState(FINISHED_OUTPUTS);
+  const [teaGrades, setTeaGrades] = useState(TEA_GRADES);
+  const [rates, setRates] = useState(DAILY_LEAF_RATES);
+
+  useEffect(() => {
+    // Load real data from DB API with mockData fallback
+    api.getDashboardSummary().then(d => { if (d) setDbSummary(d); });
+    api.getCollections().then(d => { if (d && d.length) setCollections(d); });
+    api.getSuppliers().then(d => { if (d && d.length) setSuppliers(d); });
+    api.getBatches().then(d => { if (d && d.length) setBatches(d); });
+    api.getProductionStages().then(d => { if (d && d.length) setStages(d); });
+    api.getStageLogs().then(d => { if (d && d.length) setStageLogs(d); });
+    api.getFinishedOutputs().then(d => { if (d && d.length) setFinishedOutputs(d); });
+    api.getTeaGrades().then(d => { if (d && d.length) setTeaGrades(d); });
+    api.getRates().then(d => { if (d && d.length) setRates(d); });
+  }, []);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCollections = collections.filter(c => c.date === todayStr || c.date === '2026-09-21');
+  const todayGross = todayCollections.reduce((s, c) => s + (c.gross_weight || 0), 0);
+  const todayNet = todayCollections.reduce((s, c) => s + (c.net_weight || 0), 0);
+  const todayDeduction = todayCollections.reduce((s, c) => s + (c.water_deduction_kg || 0), 0);
+  const currentRate = dbSummary?.currentRate || rates[0]?.rate_per_kg || DAILY_LEAF_RATES[0].rate_per_kg;
   const estimatedPayout = todayNet * currentRate;
-  const activeBatches = PRODUCTION_BATCHES.filter(b => b.batch_status === 'In Progress').length;
-  const todayBatch = PRODUCTION_BATCHES.find(b => b.batch_status === 'In Progress') || PRODUCTION_BATCHES[0];
+  const activeBatches = dbSummary?.batchStats?.active_batches ?? batches.filter(b => b.batch_status === 'In Progress').length;
+  const todayBatch = batches.find(b => b.batch_status === 'In Progress') || batches[0] || PRODUCTION_BATCHES[0];
 
-  // Yield: batch 2 completed — input 1316 net, finished 305 kg
-  const totalFinished = FINISHED_OUTPUTS.filter(f => f.batch_id === 2).reduce((s, f) => s + f.quantity, 0);
-  const factoryYieldPct = ((totalFinished / 1316) * 100).toFixed(1);
+  const totalFinished = finishedOutputs.reduce((s, f) => s + (f.net_weight_kg ?? f.quantity ?? 0), 0);
+  const totalBatchInput = batches.reduce((s, b) => s + (b.input_qty || 0), 0) || 1316;
+  const factoryYieldPct = totalBatchInput > 0 ? ((totalFinished / totalBatchInput) * 100).toFixed(1) : '23.2';
 
-  const dailyData = useMemo(() => buildDailyChartData(), []);
-  const stageLossData = useMemo(() => buildStageLossData(), []);
-  const gradeData = useMemo(() => buildGradePieData(), []);
+  const dailyData = useMemo(() => buildDailyChartData(collections, suppliers), [collections, suppliers]);
+  const stageLossData = useMemo(() => buildStageLossData(stageLogs, stages), [stageLogs, stages]);
+  const gradeData = useMemo(() => buildGradePieData(finishedOutputs, teaGrades), [finishedOutputs, teaGrades]);
 
   return (
     <div>
@@ -184,7 +214,7 @@ export default function Dashboard() {
             <div className="metric-icon amber"><Factory size={20} /></div>
           </div>
           <div className="metric-change neutral">
-            Water deduction: {todayDeduction.toFixed(1)} kg ({((todayDeduction / todayGross) * 100).toFixed(1)}%)
+            Water deduction: {todayDeduction.toFixed(1)} kg ({todayGross > 0 ? ((todayDeduction / todayGross) * 100).toFixed(1) : '0.0'}%)
           </div>
         </div>
 
@@ -197,7 +227,7 @@ export default function Dashboard() {
             <div className="metric-icon blue"><Clock size={20} /></div>
           </div>
           <div className="metric-change neutral">
-            {PRODUCTION_BATCHES.filter(b => b.batch_status === 'Completed').length} completed this week
+            {batches.filter(b => b.batch_status === 'Completed').length} completed this week
           </div>
         </div>
 
@@ -242,7 +272,7 @@ export default function Dashboard() {
       </div>
 
       {/* Production Pipeline */}
-      <ProductionPipeline batch={todayBatch} logs={PRODUCTION_STAGE_LOGS} />
+      <ProductionPipeline batch={todayBatch} logs={stageLogs} stages={stages} />
 
       {/* Charts Row */}
       <div className="grid-2" style={{ marginBottom: '24px' }}>
@@ -333,20 +363,22 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {todayCollections.map(col => {
-                const sup = getSupplier(col.supplier_id);
-                const value = (col.net_weight * currentRate).toFixed(0);
+                const sup = suppliers.find(s => s.supplier_id === col.supplier_id);
+                const supName = col.supplier_name || sup?.name;
+                const supType = col.supplier_type || sup?.supplier_type;
+                const value = ((col.net_weight || 0) * currentRate).toFixed(0);
                 return (
                   <tr key={col.collection_id}>
-                    <td style={{ fontWeight: 600, color: 'var(--slate-200)' }}>{sup?.name}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--slate-200)' }}>{supName}</td>
                     <td>
-                      <span className={`badge ${sup?.supplier_type === 'Internal Plucker' ? 'badge-info' : 'badge-purple'}`}>
-                        {sup?.supplier_type}
+                      <span className={`badge ${supType === 'Internal Plucker' ? 'badge-info' : 'badge-purple'}`}>
+                        {supType}
                       </span>
                     </td>
                     <td>{col.time}</td>
-                    <td>{col.gross_weight.toLocaleString()}</td>
-                    <td style={{ color: 'var(--red-400)' }}>-{col.water_deduction_kg.toFixed(1)}</td>
-                    <td style={{ color: 'var(--emerald-400)', fontWeight: 700 }}>{col.net_weight.toFixed(1)}</td>
+                    <td>{(col.gross_weight || 0).toLocaleString()}</td>
+                    <td style={{ color: 'var(--red-400)' }}>-{(col.water_deduction_kg || 0).toFixed(1)}</td>
+                    <td style={{ color: 'var(--emerald-400)', fontWeight: 700 }}>{(col.net_weight || 0).toFixed(1)}</td>
                     <td style={{ color: 'var(--amber-400)', fontWeight: 600 }}>Rs. {Number(value).toLocaleString()}</td>
                     <td><span className="badge badge-success"><CheckCircle size={10} /> Verified</span></td>
                   </tr>

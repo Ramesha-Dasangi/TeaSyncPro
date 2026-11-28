@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DollarSign, Receipt, Calendar, ArrowUpRight, CheckCircle2,
   Clock, FileText, Printer, X, Download, ShieldCheck, Plus,
@@ -8,6 +8,7 @@ import {
 import {
   SUPPLIER_PAYMENTS, SUPPLIERS, TEA_COLLECTIONS, DAILY_LEAF_RATES
 } from '../data/mockData';
+import { api } from '../services/api';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 const fmtCur = (n) => `Rs. ${Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
@@ -82,6 +83,36 @@ export default function FinancePage({ user, onNavigate }) {
     market_ref: 'Colombo Tea Auction High Grown Elevation Index'
   });
 
+  // ─── STATE 3: SUPPLIERS & COLLECTIONS (from DB) ──────────────────────────
+  const [suppliers, setSuppliers] = useState(SUPPLIERS);
+  const [collections, setCollections] = useState(TEA_COLLECTIONS);
+
+  useEffect(() => {
+    // Load real payments, suppliers, collections and rates from DB
+    api.getSupplierPayments().then(data => {
+      if (data && data.length) {
+        setPayments(data.map(p => ({
+          ...p,
+          amount: p.net_payable ?? p.amount ?? 0,
+          method: p.payment_method || p.method || 'Bank Transfer',
+          ref_no: p.invoice_no || p.ref_no || `TXN-2026-00${p.payment_id}`,
+          gross_amount: p.gross_amount ?? ((p.net_payable ?? p.amount ?? 0) + (p.deductions ?? 4500)),
+          deductions: p.deductions ?? 4500,
+          notes: p.notes || (p.billing_month ? `${p.billing_month} Monthly Leaf Settlement` : 'Monthly leaf supply settlement')
+        })));
+      }
+    });
+    api.getSuppliers().then(data => { if (data && data.length) setSuppliers(data); });
+    api.getCollections().then(data => { if (data && data.length) setCollections(data); });
+    api.getRates().then(data => {
+      if (data && data.length) {
+        const sorted = [...data].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date));
+        setDailyRates(sorted);
+        if (sorted[0]?.rate_per_kg) setCustomRate(sorted[0].rate_per_kg);
+      }
+    });
+  }, []);
+
   // ─── STATE 3: CALCULATE & RECORD PAYMENT ─────────────────────────────────
   const [calcSupplierId, setCalcSupplierId] = useState(1);
   const [calcMonth, setCalcMonth] = useState('2026-09');
@@ -100,12 +131,12 @@ export default function FinancePage({ user, onNavigate }) {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const getSupplier = (id) => SUPPLIERS.find(s => s.supplier_id === Number(id)) || SUPPLIERS[0];
+  const getSupplier = (id) => suppliers.find(s => s.supplier_id === Number(id)) || suppliers[0] || SUPPLIERS[0];
 
   // ─── Calculation Logic ───────────────────────────────────────────────────
-  const supplierCollections = TEA_COLLECTIONS.filter(c => {
+  const supplierCollections = collections.filter(c => {
     const isSupplier = c.supplier_id === Number(calcSupplierId);
-    const matchesMonth = c.date.startsWith(calcMonth);
+    const matchesMonth = c.date && c.date.startsWith(calcMonth);
     return isSupplier && matchesMonth;
   });
 
@@ -117,29 +148,55 @@ export default function FinancePage({ user, onNavigate }) {
   const netPayable = Math.max(0, grossPayment - totalDeductions);
 
   // ─── Process 2.1: Record Monthly Payment ─────────────────────────────────
-  const handleRecordMonthlyPayment = (status = 'Paid') => {
+  const handleRecordMonthlyPayment = async (status = 'Paid') => {
     const newId = Math.max(...payments.map(p => p.payment_id), 0) + 1;
     const s = getSupplier(calcSupplierId);
+    const leafKg = totalNetWeight > 0 ? totalNetWeight : 350;
+    const grossAmt = grossPayment > 0 ? grossPayment : leafKg * customRate;
+    const netAmt = netPayable > 0 ? netPayable : Math.max(0, grossAmt - totalDeductions);
+    const method = s?.bank_name ? 'Bank Transfer' : 'Cash';
+    const invNo = `INV-${calcMonth}-${Date.now().toString().slice(-4)}`;
+
     const newPayment = {
       payment_id: newId,
       supplier_id: Number(calcSupplierId),
       pay_date: new Date().toISOString().slice(0, 10),
-      amount: netPayable > 0 ? netPayable : 45000,
-      gross_amount: grossPayment > 0 ? grossPayment : 50000,
+      amount: netAmt,
+      gross_amount: grossAmt,
       deductions: totalDeductions,
       payment_status: status,
-      method: s.bank_name ? 'Bank Transfer' : 'Cash',
-      ref_no: `TXN-2026-00${newId}`,
-      notes: `${calcMonth} Monthly Tea Settlement (${totalNetWeight.toFixed(1)} kg @ Rs. ${customRate})`
+      method,
+      ref_no: invNo,
+      notes: `${calcMonth} Monthly Tea Settlement (${leafKg.toFixed(1)} kg @ Rs. ${customRate})`
     };
 
+    // Save to DB
+    const saved = await api.createSupplierPayment({
+      invoice_no: invNo,
+      supplier_id: newPayment.supplier_id,
+      billing_month: calcMonth,
+      pay_date: newPayment.pay_date,
+      total_leaf_kg: leafKg,
+      avg_rate_per_kg: customRate,
+      deductions: totalDeductions,
+      payment_method: method,
+      payment_status: status
+    });
+    if (saved) {
+      newPayment.payment_id = saved.payment_id || newId;
+      newPayment.ref_no = saved.invoice_no || invNo;
+      newPayment.amount = saved.net_payable ?? netAmt;
+      newPayment.gross_amount = saved.gross_amount ?? grossAmt;
+    }
+
     setPayments(prev => [newPayment, ...prev]);
-    notify(`Monthly Payment recorded successfully for ${s.name} (Rs. ${newPayment.amount.toLocaleString()})!`);
+    notify(`Monthly Payment recorded successfully for ${s?.name} (Rs. ${newPayment.amount.toLocaleString()})!`);
     setSelectedVoucher(newPayment);
   };
 
   // ─── Process 2.2: Update Payment Process ─────────────────────────────────
-  const handleUpdatePayment = () => {
+  const handleUpdatePayment = async () => {
+    await api.updatePaymentStatus(editPayment.payment_id, editPayment.payment_status);
     setPayments(prev => prev.map(p => p.payment_id === editPayment.payment_id ? {
       ...editPayment,
       amount: Number(editPayment.amount),
@@ -157,12 +214,17 @@ export default function FinancePage({ user, onNavigate }) {
   };
 
   // ─── Process 3: Add Daily Rate Process ───────────────────────────────────
-  const handleAddDailyRate = () => {
-    const newId = Math.max(...dailyRates.map(r => r.rate_id), 0) + 1;
+  const handleAddDailyRate = async () => {
+    const rateVal = parseFloat(rateForm.rate_per_kg);
+    const saved = await api.createRate({
+      effective_date: rateForm.effective_date,
+      rate_per_kg: rateVal
+    });
+    const newId = saved?.rate_id || (Math.max(...dailyRates.map(r => r.rate_id), 0) + 1);
     const newRate = {
       rate_id: newId,
-      effective_date: rateForm.effective_date,
-      rate_per_kg: parseFloat(rateForm.rate_per_kg)
+      effective_date: saved?.effective_date || rateForm.effective_date,
+      rate_per_kg: saved?.rate_per_kg ?? rateVal
     };
     const updated = [newRate, ...dailyRates].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date));
     setDailyRates(updated);
@@ -176,17 +238,16 @@ export default function FinancePage({ user, onNavigate }) {
     notify(`New Daily Leaf Rate Rs. ${newRate.rate_per_kg.toFixed(2)} added as Active Rate!`);
   };
 
-  // ─── KPI Calculations ───────────────────────────────────────────────────
   const totalDisbursed = payments.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + p.amount, 0);
   const totalPending = payments.filter(p => p.payment_status === 'Pending').reduce((s, p) => s + p.amount, 0);
-  const activeSuppliersCount = SUPPLIERS.filter(s => s.status === 'Active').length;
+  const activeSuppliersCount = suppliers.filter(s => s.status !== 'Inactive').length;
 
   const filteredPayments = payments.filter(p => {
     const s = getSupplier(p.supplier_id);
     const term = paymentSearch.toLowerCase();
-    const matchSearch = s.name.toLowerCase().includes(term) ||
+    const matchSearch = (s?.name || '').toLowerCase().includes(term) ||
       `#pay-${p.payment_id}`.includes(term) ||
-      p.ref_no?.toLowerCase().includes(term);
+      (p.ref_no || '').toLowerCase().includes(term);
     const matchStatus = statusFilter === 'ALL' || p.payment_status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -195,7 +256,7 @@ export default function FinancePage({ user, onNavigate }) {
     { label: 'Total Disbursed (Paid)', value: fmtCur(totalDisbursed), sub: `${payments.filter(p => p.payment_status === 'Paid').length} Completed Transfers`, icon: CheckCircle2, color: '#10b981' },
     { label: 'Pending Settlement', value: fmtCur(totalPending), sub: `${payments.filter(p => p.payment_status === 'Pending').length} Pending Approval`, icon: Clock, color: '#f59e0b' },
     { label: 'Active Leaf Rate', value: `Rs. ${currentRate.toFixed(2)}`, sub: `Effective: ${fmtDate(dailyRates[0]?.effective_date)}`, icon: TrendingUp, color: '#3b82f6' },
-    { label: 'Active Suppliers', value: activeSuppliersCount, sub: `${SUPPLIERS.filter(s => s.supplier_type === 'Commercial').length} Commercial / ${SUPPLIERS.filter(s => s.supplier_type === 'Internal Plucker').length} Pluckers`, icon: User, color: '#8b5cf6' },
+    { label: 'Active Suppliers', value: activeSuppliersCount, sub: `${suppliers.filter(s => s.supplier_type === 'Commercial').length} Commercial / ${suppliers.filter(s => s.supplier_type === 'Internal Plucker').length} Pluckers`, icon: User, color: '#8b5cf6' },
   ];
 
   return (
@@ -402,7 +463,7 @@ export default function FinancePage({ user, onNavigate }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 16 }}>
               <FormRow label="Select Supplier">
                 <select className="select-field" value={calcSupplierId} onChange={e => setCalcSupplierId(e.target.value)}>
-                  {SUPPLIERS.map(s => (
+                  {suppliers.map(s => (
                     <option key={s.supplier_id} value={s.supplier_id}>
                       #{s.supplier_id} - {s.name} ({s.supplier_type})
                     </option>
