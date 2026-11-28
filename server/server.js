@@ -3,67 +3,67 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
 
-// Import all Sequelize models so they get registered before sync
-// Even if we don't use them directly here, they need to be imported
-// so that Sequelize knows about all the tables when we call sync()
-import User from './models/User.js';
-import Employee from './models/Employee.js';
-import Attendance from './models/Attendance.js';
-import Supplier from './models/Supplier.js';
-import SupplierPayment from './models/SupplierPayment.js';
-import CollectionSchedule from './models/CollectionSchedule.js';
-import DailyLeafRate from './models/DailyLeafRate.js';
-import TeaCollection from './models/TeaCollection.js';
-import ProductionBatch from './models/ProductionBatch.js';
-import ProductionStage from './models/ProductionStage.js';
-import ProductionStageLog from './models/ProductionStageLog.js';
-import TeaGrade from './models/TeaGrade.js';
-import FinishedOutput from './models/FinishedOutput.js';
-import SalesInvoice from './models/SalesInvoice.js';
+// Route imports
+import collectionRoutes from './routes/collections.js';
+import supplierRoutes from './routes/suppliers.js';
+import batchRoutes from './routes/batches.js';
+import gradingRoutes from './routes/grading.js';
+import financeRoutes from './routes/finance.js';
+import employeeRoutes from './routes/employees.js';
+import dashboardRoutes from './routes/dashboard.js';
 
-// Load environment variables from .env file first thing
+// Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+let PORT = parseInt(process.env.PORT || '5000', 10);
 
-// ---------------------------------------------------
-// Middleware Setup
-// ---------------------------------------------------
-
-// Allow requests from the React frontend (running on a different port during dev)
+// Middleware
 app.use(cors());
-
-// Parse incoming JSON request bodies so we can read req.body
 app.use(express.json());
 
-// ---------------------------------------------------
-// Basic Health Check Route
-// ---------------------------------------------------
-
-// Simple route to check if the server is up and running
+// API Health Check
 app.get('/', (req, res) => {
-  res.json({ message: 'TeaSyncPro API is running!' });
+  res.json({
+    status: 'ONLINE',
+    message: 'TeaSyncPro Factory Management REST API is active',
+    database: 'Enterprise Relational Engine (Singular Schema)',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// ---------------------------------------------------
-// TODO: Add your route files here as you build them
-// Example:
-// import authRoutes from './routes/auth.js';
-// app.use('/api/auth', authRoutes);
-// ---------------------------------------------------
+// Mount API routes
+app.use('/api/collections', collectionRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/batches', batchRoutes);
+app.use('/api/grading', gradingRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
-// ---------------------------------------------------
-// Start Server and Connect to Database
-// ---------------------------------------------------
-
+// Start server with port fallback
 const startServer = async () => {
-  // First connect to MySQL - if this fails we should know before starting
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err) {
+    console.warn('[DB] MySQL is offline, using SQLite engine (teasyncpro.db).');
+  }
 
-  // Start listening for incoming requests
-  app.listen(PORT, () => {
-    console.log(`TeaSyncPro server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(` TeaSyncPro Backend Server listening on http://localhost:${PORT}`);
+    console.log(` REST API endpoints ready under http://localhost:${PORT}/api/`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`Port ${PORT} in use, attempting port ${PORT + 1}...`);
+      PORT += 1;
+      app.listen(PORT, () => {
+        console.log(` TeaSyncPro Backend Server listening on http://localhost:${PORT}`);
+      });
+    } else {
+      console.error('Server error:', err);
+    }
   });
 };
 
