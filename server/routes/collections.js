@@ -5,9 +5,9 @@ import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // GET all collections with supplier, schedule, and rate details
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const collections = query(`
+    const collections = await query(`
       SELECT 
         c.*,
         s.name AS supplier_name,
@@ -28,7 +28,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // POST new collection
-router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
+router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), async (req, res) => {
   try {
     const {
       slip_no,
@@ -54,14 +54,14 @@ router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'C
     const collectionDate = date || new Date().toISOString().slice(0, 10);
     const collectionTime = time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO tea_collection (
         slip_no, schedule_id, supplier_id, date, time,
         gross_weight, water_deduction_kg, bag_deduction_kg, net_weight, rate_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [generatedSlip, schedule_id, supplier_id, collectionDate, collectionTime, gross, water, bag, net, rate_id]);
 
-    const newRecord = getOne(`
+    const newRecord = await getOne(`
       SELECT 
         c.*,
         s.name AS supplier_name,
@@ -83,7 +83,7 @@ router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'C
 });
 
 // PUT update collection
-router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
+router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -101,14 +101,14 @@ router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 
     const bag = parseFloat(bag_deduction_kg) || 0;
     const net = Math.max(0, gross - water - bag);
 
-    execute(`
+    await execute(`
       UPDATE tea_collection
       SET schedule_id = ?, supplier_id = ?, date = ?, time = ?,
           gross_weight = ?, water_deduction_kg = ?, bag_deduction_kg = ?, net_weight = ?
       WHERE collection_id = ?
     `, [schedule_id, supplier_id, date, time, gross, water, bag, net, id]);
 
-    const updated = getOne(`SELECT * FROM tea_collection WHERE collection_id = ?`, [id]);
+    const updated = await getOne(`SELECT * FROM tea_collection WHERE collection_id = ?`, [id]);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -116,10 +116,10 @@ router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 
 });
 
 // DELETE collection
-router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), async (req, res) => {
   try {
     const { id } = req.params;
-    execute(`DELETE FROM tea_collection WHERE collection_id = ?`, [id]);
+    await execute(`DELETE FROM tea_collection WHERE collection_id = ?`, [id]);
     res.json({ message: 'Collection deleted successfully', id: Number(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -127,9 +127,9 @@ router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager
 });
 
 // GET schedules
-router.get('/meta/schedules', requireAuth, (req, res) => {
+router.get('/meta/schedules', requireAuth, async (req, res) => {
   try {
-    const schedules = query(`SELECT * FROM collection_schedule ORDER BY date DESC`);
+    const schedules = await query(`SELECT * FROM collection_schedule ORDER BY date DESC`);
     res.json(schedules);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -137,14 +137,14 @@ router.get('/meta/schedules', requireAuth, (req, res) => {
 });
 
 // POST schedule
-router.post('/meta/schedules', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
+router.post('/meta/schedules', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), async (req, res) => {
   try {
     const { date, route_name, vehicle_no } = req.body;
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO collection_schedule (date, route_name, vehicle_no)
       VALUES (?, ?, ?)
     `, [date, route_name, vehicle_no]);
-    const newSchedule = getOne(`SELECT * FROM collection_schedule WHERE schedule_id = ?`, [result.lastInsertRowid]);
+    const newSchedule = await getOne(`SELECT * FROM collection_schedule WHERE schedule_id = ?`, [result.lastInsertRowid]);
     res.status(201).json(newSchedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -152,9 +152,9 @@ router.post('/meta/schedules', requireAuth, requireRole('Administrator', 'Factor
 });
 
 // GET rates
-router.get('/meta/rates', requireAuth, (req, res) => {
+router.get('/meta/rates', requireAuth, async (req, res) => {
   try {
-    const rates = query(`SELECT * FROM daily_leaf_rate ORDER BY effective_date DESC`);
+    const rates = await query(`SELECT * FROM daily_leaf_rate ORDER BY effective_date DESC`);
     res.json(rates);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -162,14 +162,14 @@ router.get('/meta/rates', requireAuth, (req, res) => {
 });
 
 // POST rate
-router.post('/meta/rates', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
+router.post('/meta/rates', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), async (req, res) => {
   try {
     const { effective_date, rate_per_kg } = req.body;
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO daily_leaf_rate (effective_date, rate_per_kg)
       VALUES (?, ?)
     `, [effective_date, rate_per_kg]);
-    const newRate = getOne(`SELECT * FROM daily_leaf_rate WHERE rate_id = ?`, [result.lastInsertRowid]);
+    const newRate = await getOne(`SELECT * FROM daily_leaf_rate WHERE rate_id = ?`, [result.lastInsertRowid]);
     res.status(201).json(newRate);
   } catch (err) {
     res.status(500).json({ error: err.message });

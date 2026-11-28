@@ -5,11 +5,11 @@ import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // GET all supplier payments
-router.get('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer', 'Supplier'), (req, res) => {
+router.get('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer', 'Supplier'), async (req, res) => {
   try {
     if (req.user.role === 'Supplier') {
       const supId = req.user.supplier_id || 1;
-      const payments = query(`
+      const payments = await query(`
         SELECT p.*, s.name AS supplier_name, s.phone AS supplier_phone, s.bank_name, s.bank_account
         FROM supplier_payment p
         JOIN supplier s ON p.supplier_id = s.supplier_id
@@ -18,7 +18,7 @@ router.get('/payments', requireAuth, requireRole('Administrator', 'Factory Manag
       `, [supId]);
       return res.json(payments);
     }
-    const payments = query(`
+    const payments = await query(`
       SELECT 
         p.*,
         s.name AS supplier_name,
@@ -36,7 +36,7 @@ router.get('/payments', requireAuth, requireRole('Administrator', 'Factory Manag
 });
 
 // POST new supplier payment
-router.post('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
+router.post('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), async (req, res) => {
   try {
     const {
       invoice_no,
@@ -59,14 +59,14 @@ router.post('/payments', requireAuth, requireRole('Administrator', 'Factory Mana
     const ded = parseFloat(deductions) || 0;
     const net = Math.max(0, gross - ded);
 
-    const result = execute(`
+    const result = await execute(`
       INSERT INTO supplier_payment (
         invoice_no, supplier_id, billing_month, pay_date, total_leaf_kg,
         avg_rate_per_kg, gross_amount, deductions, net_payable, payment_method, payment_status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [inv, supplier_id, month, date, leaf, rate, gross, ded, net, payment_method, payment_status]);
 
-    const newPayment = getOne(`
+    const newPayment = await getOne(`
       SELECT 
         p.*,
         s.name AS supplier_name,
@@ -85,13 +85,13 @@ router.post('/payments', requireAuth, requireRole('Administrator', 'Factory Mana
 });
 
 // PUT update payment status (e.g., mark as 'Paid')
-router.put('/payments/:id/status', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
+router.put('/payments/:id/status', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), async (req, res) => {
   try {
     const { id } = req.params;
     const { payment_status = 'Paid' } = req.body;
 
-    execute(`UPDATE supplier_payment SET payment_status = ? WHERE payment_id = ?`, [payment_status, id]);
-    const updated = getOne(`SELECT * FROM supplier_payment WHERE payment_id = ?`, [id]);
+    await execute(`UPDATE supplier_payment SET payment_status = ? WHERE payment_id = ?`, [payment_status, id]);
+    const updated = await getOne(`SELECT * FROM supplier_payment WHERE payment_id = ?`, [id]);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
