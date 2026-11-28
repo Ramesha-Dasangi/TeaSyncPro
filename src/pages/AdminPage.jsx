@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users, Truck, Calendar, DollarSign, Award, FileText,
   Plus, Pencil, Trash2, Search, X, ChevronRight, Printer,
@@ -11,6 +11,7 @@ import {
   DAILY_LEAF_RATES, TEA_GRADES, FINISHED_OUTPUTS,
   PRODUCTION_BATCHES, TEA_COLLECTIONS, WITHERING_RECORDS
 } from '../data/mockData';
+import { api } from '../services/api';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
@@ -226,6 +227,20 @@ function SuppliersTab({ notify }) {
   const emptyForm = { name: '', supplier_type: 'Commercial', phone: '', email: '', nic: '', address: '', payment: 'Monthly', transport_mode: 'Own Vehicle', bank_name: '', bank_account: '', status: 'Active' };
   const [form, setForm] = useState(emptyForm);
 
+  // Load real suppliers from DB
+  useEffect(() => {
+    api.getSuppliers().then(data => {
+      if (data && data.length) {
+        setRecords(data.map(s => ({
+          ...s,
+          join_date: s.registered_date || s.join_date || new Date().toISOString().slice(0, 10),
+          status: s.status || 'Active',
+          payment: s.payment || 'Monthly'
+        })));
+      }
+    });
+  }, []);
+
   const filtered = records.filter(r => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.phone.includes(search);
     const matchType = filterType === 'All' || r.supplier_type === filterType;
@@ -239,18 +254,22 @@ function SuppliersTab({ notify }) {
     { label: 'Active', value: records.filter(r => r.status === 'Active').length, icon: Award, color: '#f59e0b' },
   ];
 
-  const handleAdd = () => {
-    const newId = Math.max(...records.map(r => r.supplier_id)) + 1;
-    setRecords(prev => [...prev, { ...form, supplier_id: newId, join_date: new Date().toISOString().slice(0, 10) }]);
+  const handleAdd = async () => {
+    const regDate = new Date().toISOString().slice(0, 10);
+    const saved = await api.createSupplier({ ...form, registered_date: regDate });
+    const newId = saved?.supplier_id || (Math.max(...records.map(r => r.supplier_id), 0) + 1);
+    setRecords(prev => [...prev, { ...form, supplier_id: newId, join_date: saved?.registered_date || regDate }]);
     setShowAdd(false); setForm(emptyForm);
     notify('Supplier added successfully!');
   };
-  const handleEdit = () => {
+  const handleEdit = async () => {
+    await api.updateSupplier(editItem.supplier_id, editItem);
     setRecords(prev => prev.map(r => r.supplier_id === editItem.supplier_id ? { ...editItem } : r));
     setEditItem(null);
     notify('Supplier updated successfully!');
   };
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    await api.deleteSupplier(deleteItem.supplier_id);
     setRecords(prev => prev.filter(r => r.supplier_id !== deleteItem.supplier_id));
     setDeleteItem(null);
     notify('Supplier deleted successfully!');
@@ -407,6 +426,11 @@ function SchedulesTab({ notify }) {
   const emptyForm = { date: '', route_name: '', vehicle_no: '' };
   const [form, setForm] = useState(emptyForm);
 
+  // Load real schedules from DB
+  useEffect(() => {
+    api.getSchedules().then(data => { if (data && data.length) setRecords(data); });
+  }, []);
+
   const filtered = records.filter(r =>
     r.route_name.toLowerCase().includes(search.toLowerCase()) ||
     r.vehicle_no.toLowerCase().includes(search.toLowerCase())
@@ -420,8 +444,9 @@ function SchedulesTab({ notify }) {
     { label: 'Vehicles', value: new Set(records.map(r => r.vehicle_no)).size, icon: Truck, color: '#f59e0b' },
   ];
 
-  const handleAdd = () => {
-    const newId = Math.max(...records.map(r => r.schedule_id)) + 1;
+  const handleAdd = async () => {
+    const saved = await api.createSchedule(form);
+    const newId = saved?.schedule_id || (Math.max(...records.map(r => r.schedule_id), 0) + 1);
     setRecords(prev => [...prev, { ...form, schedule_id: newId }]);
     setShowAdd(false); setForm(emptyForm);
     notify('Schedule added successfully!');
@@ -540,6 +565,13 @@ function RatesTab({ notify }) {
   const emptyForm = { effective_date: '', rate_per_kg: '' };
   const [form, setForm] = useState(emptyForm);
 
+  // Load real rates from DB
+  useEffect(() => {
+    api.getRates().then(data => {
+      if (data && data.length) setRecords([...data].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date)));
+    });
+  }, []);
+
   const currentRate = records[0];
   const kpiCards = [
     { label: 'Current Rate', value: `Rs. ${currentRate?.rate_per_kg ?? '—'}`, icon: DollarSign, color: '#10b981' },
@@ -548,9 +580,11 @@ function RatesTab({ notify }) {
     { label: 'Lowest Rate', value: `Rs. ${Math.min(...records.map(r => r.rate_per_kg))}`, icon: AlertCircle, color: '#f59e0b' },
   ];
 
-  const handleAdd = () => {
-    const newId = Math.max(...records.map(r => r.rate_id)) + 1;
-    const newRec = { ...form, rate_id: newId, rate_per_kg: parseFloat(form.rate_per_kg) };
+  const handleAdd = async () => {
+    const rateVal = parseFloat(form.rate_per_kg);
+    const saved = await api.createRate({ effective_date: form.effective_date, rate_per_kg: rateVal });
+    const newId = saved?.rate_id || (Math.max(...records.map(r => r.rate_id), 0) + 1);
+    const newRec = { ...form, rate_id: newId, rate_per_kg: saved?.rate_per_kg ?? rateVal };
     setRecords(prev => [...prev, newRec].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date)));
     setShowAdd(false); setForm(emptyForm);
     notify('Daily rate added successfully!');
@@ -668,11 +702,23 @@ function GradesTab({ notify }) {
   const emptyGradingForm = { batch_id: '2', grade_id: '1', quantity: '', unit_cost: '', out_date: '', tax_percentage: '8' };
   const [gradingForm, setGradingForm] = useState(emptyGradingForm);
 
+  useEffect(() => {
+    api.getTeaGrades().then(data => { if (data && data.length) setGrades(data); });
+    api.getFinishedOutputs().then(data => {
+      if (data && data.length) {
+        setGradingRecs(data.map(o => ({
+          ...o,
+          quantity: o.quantity_bags ?? o.quantity ?? 0
+        })));
+      }
+    });
+  }, []);
+
   const kpiCards = [
     { label: 'Tea Grades', value: grades.length, icon: Award, color: '#10b981' },
     { label: 'Grading Records', value: gradingRecs.length, icon: FileText, color: '#3b82f6' },
-    { label: 'Total Qty (kg)', value: gradingRecs.reduce((s, r) => s + r.quantity, 0), icon: Package, color: '#8b5cf6' },
-    { label: 'Est. Value', value: `Rs. ${(gradingRecs.reduce((s, r) => s + r.quantity * r.unit_cost, 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: '#f59e0b' },
+    { label: 'Total Qty (kg)', value: gradingRecs.reduce((s, r) => s + (r.quantity || 0), 0), icon: Package, color: '#8b5cf6' },
+    { label: 'Est. Value', value: `Rs. ${(gradingRecs.reduce((s, r) => s + (r.quantity || 0) * (r.unit_cost || 0), 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: '#f59e0b' },
   ];
 
   const handleAddGrade = () => {
@@ -691,16 +737,27 @@ function GradesTab({ notify }) {
     setDeleteItem(null);
     notify('Tea grade deleted!');
   };
-  const handleAddGrading = () => {
-    const newId = Math.max(...gradingRecs.map(r => r.output_id), 0) + 1;
-    setGradingRecs(prev => [...prev, {
-      output_id: newId,
+  const handleAddGrading = async () => {
+    const qty = parseFloat(gradingForm.quantity) || 1;
+    const payload = {
       batch_id: parseInt(gradingForm.batch_id),
       grade_id: parseInt(gradingForm.grade_id),
-      quantity: parseFloat(gradingForm.quantity),
-      unit_cost: parseFloat(gradingForm.unit_cost),
-      out_date: gradingForm.out_date,
-      tax_percentage: parseFloat(gradingForm.tax_percentage),
+      quantity_bags: qty,
+      net_weight_kg: qty * 50,
+      unit_cost: parseFloat(gradingForm.unit_cost) || 0,
+      out_date: gradingForm.out_date || new Date().toISOString().slice(0, 10),
+      tax_percentage: parseFloat(gradingForm.tax_percentage) || 8,
+    };
+    const saved = await api.createFinishedOutput(payload);
+    const newId = saved?.output_id || (Math.max(...gradingRecs.map(r => r.output_id), 0) + 1);
+    setGradingRecs(prev => [...prev, {
+      output_id: newId,
+      batch_id: payload.batch_id,
+      grade_id: payload.grade_id,
+      quantity: qty,
+      unit_cost: payload.unit_cost,
+      out_date: payload.out_date,
+      tax_percentage: payload.tax_percentage,
     }]);
     setGradingForm(emptyGradingForm);
     notify('Grading record added!');
@@ -1036,6 +1093,24 @@ function EmployeesTab({ notify }) {
   const emptyForm = { emp_id: '', name: '', designation: DESIGNATIONS[0], department: DEPARTMENTS[0], phone: '', email: '', status: 'Active', joined: '' };
   const [form, setForm] = useState(emptyForm);
 
+  useEffect(() => {
+    api.getEmployees().then(data => {
+      if (data && data.length) {
+        setRecords(data.map(e => ({
+          employee_id: e.employee_id,
+          emp_id: `E${String(e.employee_id).padStart(3, '0')}`,
+          name: e.name,
+          designation: e.role || 'Factory Staff',
+          department: e.role?.includes('Finance') ? 'Finance' : e.role?.includes('Collect') ? 'Collection' : e.role?.includes('Grad') ? 'Quality Control' : 'Factory',
+          phone: e.phone || '',
+          email: e.email || '',
+          status: e.status || 'Active',
+          joined: e.join_date || ''
+        })));
+      }
+    });
+  }, []);
+
   const filtered = records.filter(r => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.designation.toLowerCase().includes(search.toLowerCase()) ||
@@ -1051,16 +1126,24 @@ function EmployeesTab({ notify }) {
     { label: 'Departments',     value: new Set(records.map(r => r.department)).size, icon: Building2, color: '#8b5cf6' },
   ];
 
-  const handleAdd = () => {
-    setRecords(prev => [...prev, { ...form }]);
+  const handleAdd = async () => {
+    const saved = await api.createEmployee({ name: form.name, phone: form.phone, status: form.status, join_date: form.joined || new Date().toISOString().slice(0, 10) });
+    const empId = saved?.employee_id;
+    setRecords(prev => [...prev, { ...form, employee_id: empId, emp_id: form.emp_id || (empId ? `E${String(empId).padStart(3, '0')}` : `E${String(prev.length + 1).padStart(3, '0')}`) }]);
     setShowAdd(false); setForm(emptyForm);
     notify('Employee added successfully!');
   };
-  const handleEdit = () => {
+  const handleEdit = async () => {
+    if (editItem.employee_id) {
+      await api.updateEmployee(editItem.employee_id, { name: editItem.name, phone: editItem.phone, status: editItem.status });
+    }
     setRecords(prev => prev.map(r => r.emp_id === editItem.emp_id ? { ...editItem } : r));
     setEditItem(null); notify('Employee updated!');
   };
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (deleteItem.employee_id) {
+      await api.deleteEmployee(deleteItem.employee_id);
+    }
     setRecords(prev => prev.filter(r => r.emp_id !== deleteItem.emp_id));
     setDeleteItem(null); notify('Employee removed.');
   };

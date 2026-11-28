@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ClipboardList, Warehouse, Package, ArrowUpRight, ArrowDownLeft,
   ShieldCheck, Box, Search, Plus, Edit3, Trash2, CheckCircle2,
@@ -8,10 +8,61 @@ import {
   TEA_GRADES, FINISHED_OUTPUTS, PRODUCTION_BATCHES,
   TEA_COLLECTIONS, SUPPLIERS, COLLECTION_SCHEDULES
 } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'inputs' | 'batches'
   const [notification, setNotification] = useState(null);
+  const [teaGrades, setTeaGrades] = useState(TEA_GRADES);
+  const [finishedOutputs, setFinishedOutputs] = useState(FINISHED_OUTPUTS);
+  const [batchList, setBatchList] = useState(PRODUCTION_BATCHES);
+
+  useEffect(() => {
+    // Load real finished goods, grades, collections & batches from DB
+    Promise.all([
+      api.getTeaGrades(),
+      api.getFinishedOutputs(),
+      api.getCollections(),
+      api.getBatches()
+    ]).then(([dbGrades, dbOutputs, dbCols, dbBatches]) => {
+      const grades = (dbGrades && dbGrades.length) ? dbGrades : TEA_GRADES;
+      const outputs = (dbOutputs && dbOutputs.length) ? dbOutputs : FINISHED_OUTPUTS;
+      setTeaGrades(grades);
+      setFinishedOutputs(outputs);
+      setStockList(grades.map((g, idx) => {
+        const bags = outputs.filter(o => o.grade_id === g.grade_id).reduce((s, o) => s + (o.quantity_bags ?? o.quantity ?? 0), 0) || (40 + idx * 15);
+        const matchedOut = outputs.find(o => o.grade_id === g.grade_id);
+        const unitCost = matchedOut?.unit_cost || (1650 + idx * 50);
+        const netKg = outputs.filter(o => o.grade_id === g.grade_id).reduce((s, o) => s + (o.net_weight_kg ?? ((o.quantity_bags ?? o.quantity ?? 0) * 50)), 0) || (bags * 50);
+        return {
+          stock_id: g.grade_id,
+          grade_name: g.grade_name,
+          description: g.description,
+          bay: `Bay ${String.fromCharCode(65 + (idx % 3))} - Shelf ${idx + 1}`,
+          bags,
+          net_weight: netKg,
+          unit_cost: unitCost,
+          status: 'Ready for Auction'
+        };
+      }));
+      if (dbCols && dbCols.length) {
+        setInputList(dbCols.slice(0, 12).map(c => ({
+          input_id: c.collection_id,
+          intake_no: c.slip_no || `#INP-${1000 + c.collection_id}`,
+          date: c.date,
+          time: c.time,
+          trough: `Withering Trough 0${(c.collection_id % 3) + 1}`,
+          supplier_name: c.supplier_name || SUPPLIERS.find(sup => sup.supplier_id === c.supplier_id)?.name || 'Local Estate Plucker',
+          route_name: c.route_name || COLLECTION_SCHEDULES.find(sc => sc.schedule_id === c.schedule_id)?.route_name || 'Route A - Nuwara Eliya',
+          gross_weight: c.gross_weight,
+          water_deduction_kg: c.water_deduction_kg,
+          net_weight: c.net_weight,
+          status: 'Loaded in Trough'
+        })));
+      }
+      if (dbBatches && dbBatches.length) setBatchList(dbBatches);
+    });
+  }, []);
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -21,8 +72,8 @@ export default function InventoryPage() {
   // ==========================================
   // 1. FINISHED GOODS STOCK MANAGEMENT STATE
   // ==========================================
-  const initialStock = TEA_GRADES.map((g, idx) => {
-    const bags = FINISHED_OUTPUTS.filter(o => o.grade_id === g.grade_id).reduce((s, o) => s + o.quantity, 0) || (40 + idx * 15);
+  const initialStock = teaGrades.map((g, idx) => {
+    const bags = finishedOutputs.filter(o => o.grade_id === g.grade_id).reduce((s, o) => s + (o.quantity || 0), 0) || (40 + idx * 15);
     const unitCost = 1650 + idx * 50;
     return {
       stock_id: g.grade_id,
@@ -191,26 +242,37 @@ export default function InventoryPage() {
     batch_status: 'In Progress'
   });
 
-  const handleAddBatch = (e) => {
+  const handleAddBatch = async (e) => {
     e.preventDefault();
     const inputQ = parseFloat(batchForm.input_qty) || 1000;
     const waste = parseFloat(batchForm.wastage_qty) || 20;
-    const newBatch = {
-      batch_id: batchList.length > 0 ? Math.max(...batchList.map(b => b.batch_id)) + 1 : 1,
+    const saved = await api.createBatch({
       prod_date: batchForm.prod_date,
       input_qty: inputQ,
       wastage_qty: waste,
       batch_status: batchForm.batch_status
+    });
+    const newBatch = {
+      batch_id: saved?.batch_id || (batchList.length > 0 ? Math.max(...batchList.map(b => b.batch_id)) + 1 : 1),
+      prod_date: saved?.prod_date || batchForm.prod_date,
+      input_qty: saved?.input_qty ?? inputQ,
+      wastage_qty: saved?.wastage_qty ?? waste,
+      batch_status: saved?.batch_status || batchForm.batch_status
     };
     setBatchList([newBatch, ...batchList]);
     setShowAddBatchModal(false);
     showNotification(`Production Batch #${newBatch.batch_id} created with ${inputQ} kg input!`);
   };
 
-  const handleUpdateBatch = (e) => {
+  const handleUpdateBatch = async (e) => {
     e.preventDefault();
     const inputQ = parseFloat(batchForm.input_qty) || 1000;
     const waste = parseFloat(batchForm.wastage_qty) || 0;
+    await api.updateBatch(batchToEdit.batch_id, {
+      input_qty: inputQ,
+      wastage_qty: waste,
+      batch_status: batchForm.batch_status
+    });
     setBatchList(batchList.map(b => b.batch_id === batchToEdit.batch_id ? {
       ...b,
       prod_date: batchForm.prod_date,

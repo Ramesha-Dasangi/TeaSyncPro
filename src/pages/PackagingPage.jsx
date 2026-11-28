@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package, Box, Plus, Pencil, Trash2, Search, X, QrCode,
   CheckCircle2, Award, AlertCircle, Calendar, DollarSign,
@@ -8,6 +8,7 @@ import {
   TEA_GRADES, FINISHED_OUTPUTS, PACKAGING_RECORDS,
   PRODUCTION_BATCHES
 } from '../data/mockData';
+import { api } from '../services/api';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 const fmtCur = (n) => `Rs. ${Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
@@ -69,8 +70,21 @@ export default function PackagingPage({ user, onNavigate }) {
 
   // Graded Tea State
   const [gradedRecords, setGradedRecords] = useState(FINISHED_OUTPUTS.map(g => ({ ...g })));
+  const [teaGrades, setTeaGrades] = useState(TEA_GRADES);
   const [gradedSearch, setGradedSearch] = useState('');
   const [showAddGraded, setShowAddGraded] = useState(false);
+
+  useEffect(() => {
+    api.getTeaGrades().then(data => { if (data && data.length) setTeaGrades(data); });
+    api.getFinishedOutputs().then(data => {
+      if (data && data.length) {
+        setGradedRecords(data.map(o => ({
+          ...o,
+          quantity: o.quantity_bags ?? o.quantity ?? 0
+        })));
+      }
+    });
+  }, []);
 
   // Packaging Form State
   const emptyPackForm = {
@@ -108,7 +122,7 @@ export default function PackagingPage({ user, onNavigate }) {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const getGradeName = (id) => TEA_GRADES.find(g => g.grade_id === Number(id))?.grade_name || `Grade #${id}`;
+  const getGradeName = (id) => teaGrades.find(g => g.grade_id === Number(id))?.grade_name || `Grade #${id}`;
 
   // Packaging CRUD
   const handleAddPack = () => {
@@ -152,16 +166,27 @@ export default function PackagingPage({ user, onNavigate }) {
   };
 
   // Graded Tea Add
-  const handleAddGraded = () => {
-    const newId = Math.max(...gradedRecords.map(r => r.output_id), 0) + 1;
-    const newRecord = {
-      output_id: newId,
+  const handleAddGraded = async () => {
+    const qty = Number(gradedForm.quantity) || 1;
+    const payload = {
       batch_id: Number(gradedForm.batch_id),
       grade_id: Number(gradedForm.grade_id),
-      quantity: Number(gradedForm.quantity),
-      unit_cost: Number(gradedForm.unit_cost),
-      out_date: gradedForm.out_date,
-      tax_percentage: Number(gradedForm.tax_percentage)
+      quantity_bags: qty,
+      net_weight_kg: qty * 50,
+      unit_cost: Number(gradedForm.unit_cost) || 0,
+      out_date: gradedForm.out_date || new Date().toISOString().slice(0, 10),
+      tax_percentage: Number(gradedForm.tax_percentage) || 8
+    };
+    const saved = await api.createFinishedOutput(payload);
+    const newId = saved?.output_id || (Math.max(...gradedRecords.map(r => r.output_id), 0) + 1);
+    const newRecord = {
+      output_id: newId,
+      batch_id: payload.batch_id,
+      grade_id: payload.grade_id,
+      quantity: qty,
+      unit_cost: payload.unit_cost,
+      out_date: payload.out_date,
+      tax_percentage: payload.tax_percentage
     };
     setGradedRecords(prev => [newRecord, ...prev]);
     setShowAddGraded(false);
