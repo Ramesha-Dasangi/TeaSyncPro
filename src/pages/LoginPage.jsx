@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Leaf, User, Lock, Eye, EyeOff, ShieldCheck, ArrowLeft, Sun, Moon } from 'lucide-react';
 import { USERS, ROLES } from '../data/mockData';
+import { api } from '../services/api';
 
 const ROLE_CREDENTIALS = [
   { role: ROLES.ADMIN, username: 'admin', password: 'admin123', display: 'Admin' },
@@ -30,19 +31,30 @@ export default function LoginPage({ onLogin, onBack, theme, onToggleTheme }) {
     setError('');
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const user = USERS.find(u => u.username === username && u.password === password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError('Invalid username or password. Please try again.');
-        setLoading(false);
-      }
-    }, 800);
+
+    const authResult = await api.login(username, password);
+    if (authResult?.user) {
+      onLogin(authResult.user);
+      return;
+    }
+    if (authResult?.error) {
+      setError(authResult.error);
+      setLoading(false);
+      return;
+    }
+
+    // Fallback when API server is offline
+    const user = USERS.find(u => u.username === username && u.password === password);
+    if (user) {
+      onLogin(user);
+    } else {
+      setError('Invalid username or password. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (

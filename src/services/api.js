@@ -226,6 +226,25 @@ export const api = {
   // ─── DASHBOARD SUMMARY ────────────────────────────────────
   async getDashboardSummary() {
     return await request('/dashboard/summary');
+  },
+
+  // ─── AUTHENTICATION ───────────────────────────────────────
+  async login(username, password) {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 400) {
+        return { error: 'Invalid username or password. Please try again.' };
+      }
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return { user: await res.json() };
+    } catch (err) {
+      console.warn('[API] Auth offline, falling back to local users:', err.message);
+      return null;
+    }
   }
 };
 

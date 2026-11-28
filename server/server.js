@@ -11,6 +11,7 @@ import gradingRoutes from './routes/grading.js';
 import financeRoutes from './routes/finance.js';
 import employeeRoutes from './routes/employees.js';
 import dashboardRoutes from './routes/dashboard.js';
+import authRoutes from './routes/auth.js';
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,7 @@ app.use('/api/grading', gradingRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auth', authRoutes);
 
 // Start server with port fallback
 const startServer = async () => {
