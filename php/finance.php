@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $date = !empty($_POST['effective_date']) ? $_POST['effective_date'] : date('Y-m-d');
     
     if ($rate > 0) {
-        $stmt = $pdo->prepare("INSERT INTO daily_leaf_rates (effective_date, rate_per_kg) VALUES (?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO daily_leaf_rate (effective_date, rate_per_kg) VALUES (?, ?)");
         $stmt->execute([$date, $rate]);
         $message = "New daily leaf rate of Rs. " . number_format($rate, 2) . " established successfully!";
     }
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle POST: Toggle Payment Status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mark_paid') {
     $paymentId = (int)$_POST['payment_id'];
-    $stmt = $pdo->prepare("UPDATE supplier_payments SET payment_status = 'Paid' WHERE payment_id = ?");
+    $stmt = $pdo->prepare("UPDATE supplier_payment SET payment_status = 'Paid' WHERE payment_id = ?");
     $stmt->execute([$paymentId]);
     $message = "Payment Voucher #{$paymentId} marked as settled / paid!";
 }
@@ -36,26 +36,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $date = !empty($_POST['pay_date']) ? $_POST['pay_date'] : date('Y-m-d');
 
     if ($supplierId > 0 && $amount > 0) {
-        $stmt = $pdo->prepare("INSERT INTO supplier_payments (supplier_id, pay_date, amount, payment_status) VALUES (?, ?, ?, 'Pending')");
+        $stmt = $pdo->prepare("INSERT INTO supplier_payment (supplier_id, pay_date, amount, payment_status) VALUES (?, ?, ?, 'Pending')");
         $stmt->execute([$supplierId, $date, $amount]);
         $message = "Payment voucher created for Rs. " . number_format($amount, 2) . "!";
     }
 }
 
 // Fetch Leaf Rates
-$rates = $pdo->query("SELECT * FROM daily_leaf_rates ORDER BY effective_date DESC, rate_id DESC")->fetchAll();
+$rates = $pdo->query("SELECT * FROM daily_leaf_rate ORDER BY effective_date DESC, rate_id DESC")->fetchAll();
 $currentRate = $rates[0]['rate_per_kg'] ?? 148.50;
 
 // Fetch Supplier Payments
 $payments = $pdo->query("
     SELECT sp.*, s.name AS supplier_name, s.supplier_type, s.phone
-    FROM supplier_payments sp
-    JOIN suppliers s ON sp.supplier_id = s.supplier_id
+    FROM supplier_payment sp
+    JOIN supplier s ON sp.supplier_id = s.supplier_id
     ORDER BY sp.pay_date DESC, sp.payment_id DESC
 ")->fetchAll();
 
 // Fetch Suppliers for payment modal
-$suppliers = $pdo->query("SELECT * FROM suppliers ORDER BY name ASC")->fetchAll();
+$suppliers = $pdo->query("SELECT * FROM supplier ORDER BY name ASC")->fetchAll();
 
 // Totals
 $totalPaid = 0;

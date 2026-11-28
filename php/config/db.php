@@ -52,7 +52,7 @@ function getDB() {
 
 function ensureTablesInitialized($pdo, $driver) {
     try {
-        $check = $pdo->query("SELECT count(*) FROM users");
+        $check = $pdo->query("SELECT count(*) FROM user");
         $count = $check->fetchColumn();
         if ($count > 0) return;
     } catch (Exception $e) {}

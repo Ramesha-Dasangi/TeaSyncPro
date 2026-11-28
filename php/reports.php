@@ -7,15 +7,15 @@ $pageTitle = 'Executive Analytics & Reports';
 $currentPage = 'reports';
 
 // Aggregate stats
-$intakeTotal = $pdo->query("SELECT SUM(gross_weight) as gross, SUM(water_deduction_kg) as ded, SUM(net_weight) as net FROM tea_collections")->fetch();
-$outputTotal = $pdo->query("SELECT SUM(quantity) as qty, SUM(quantity * unit_cost) as val FROM finished_outputs")->fetch();
-$batchCount = $pdo->query("SELECT COUNT(*) FROM production_batches")->fetchColumn();
+$intakeTotal = $pdo->query("SELECT SUM(gross_weight) as gross, SUM(water_deduction_kg) as ded, SUM(net_weight) as net FROM tea_collection")->fetch();
+$outputTotal = $pdo->query("SELECT SUM(quantity) as qty, SUM(quantity * unit_cost) as val FROM finished_output")->fetch();
+$batchCount = $pdo->query("SELECT COUNT(*) FROM production_batch")->fetchColumn();
 
 // Supplier Leaderboard
 $topSuppliers = $pdo->query("
     SELECT s.name, s.supplier_type, COUNT(c.collection_id) as total_deliveries, SUM(c.net_weight) as total_kg
-    FROM suppliers s
-    JOIN tea_collections c ON s.supplier_id = c.supplier_id
+    FROM supplier s
+    JOIN tea_collection c ON s.supplier_id = c.supplier_id
     GROUP BY s.supplier_id, s.name, s.supplier_type
     ORDER BY total_kg DESC
 ")->fetchAll();
@@ -23,8 +23,8 @@ $topSuppliers = $pdo->query("
 // Grade Yield Data
 $gradeYield = $pdo->query("
     SELECT tg.grade_name, COALESCE(SUM(fo.quantity), 0) as qty, AVG(fo.unit_cost) as avg_cost
-    FROM tea_grades tg
-    LEFT JOIN finished_outputs fo ON tg.grade_id = fo.grade_id
+    FROM tea_grade tg
+    LEFT JOIN finished_output fo ON tg.grade_id = fo.grade_id
     GROUP BY tg.grade_id, tg.grade_name
     ORDER BY qty DESC
 ")->fetchAll();

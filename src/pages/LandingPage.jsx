@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Leaf, ChevronRight, BarChart3, Truck, Factory, Package, 
+import {
+  Leaf, ChevronRight, BarChart3, Truck, Factory, Package,
   Users, ShieldCheck, Star, ArrowRight, Play, CheckCircle,
-  Thermometer, Activity, Award, Sparkles, Clock, MapPin
+  Thermometer, Activity, Award, Sparkles, Clock, MapPin, Sun, Moon
 } from 'lucide-react';
 
-export default function LandingPage({ onGetStarted }) {
+export default function LandingPage({ onGetStarted, theme, onToggleTheme }) {
   // animate stats counting up when page loads
   const [statsVisible, setStatsVisible] = useState(false);
   const [counts, setCounts] = useState({ batches: 0, suppliers: 0, accuracy: 0, estates: 0 });
@@ -28,10 +28,10 @@ export default function LandingPage({ onGetStarted }) {
       const progress = step / steps;
       const ease = 1 - Math.pow(1 - progress, 3);
       setCounts({
-        batches:   Math.floor(targets.batches   * ease),
-        suppliers: Math.floor(targets.suppliers  * ease),
-        accuracy:  Math.floor(targets.accuracy  * ease),
-        estates:   Math.floor(targets.estates   * ease),
+        batches: Math.floor(targets.batches * ease),
+        suppliers: Math.floor(targets.suppliers * ease),
+        accuracy: Math.floor(targets.accuracy * ease),
+        estates: Math.floor(targets.estates * ease),
       });
       if (step >= steps) clearInterval(timer);
     }, interval);
@@ -109,26 +109,26 @@ export default function LandingPage({ onGetStarted }) {
   };
 
   const testimonials = [
-    { 
-      name: 'Kamal Perera', 
-      role: 'Estate General Manager', 
+    {
+      name: 'Kamal Perera',
+      role: 'Estate General Manager',
       estate: 'Nuwara Eliya High-Grown Estate',
       text: 'TeaSyncPro cut our paper logs by 85%. Being able to monitor trough temperatures and Made Tea outturn in real-time has elevated our export quality significantly.',
-      stars: 5 
+      stars: 5
     },
-    { 
-      name: 'Malini Gunawardena', 
-      role: 'Chief Quality Officer', 
+    {
+      name: 'Malini Gunawardena',
+      role: 'Chief Quality Officer',
       estate: 'Dimbula Valley Tea Co.',
       text: 'The automated Ceylon grading compliance and moisture tracking ensure our BOPF and OP batches meet international Colombo auction benchmarks every single time.',
-      stars: 5 
+      stars: 5
     },
-    { 
-      name: 'Nimal Rajapaksa', 
-      role: 'Collection Superintendent', 
+    {
+      name: 'Nimal Rajapaksa',
+      role: 'Collection Superintendent',
       estate: 'Ruhuna Low-Grown Cooperative',
       text: 'Over 800 smallholders get instant weighment receipts. Dispute rates dropped to virtually zero within the first week of deployment.',
-      stars: 5 
+      stars: 5
     },
   ];
 
@@ -150,10 +150,38 @@ export default function LandingPage({ onGetStarted }) {
           <a href="#stats">Performance</a>
           <a href="#reviews">Testimonials</a>
         </div>
-        <button className="landing-nav-btn" onClick={onGetStarted}>
-          <span>Sign In</span>
-          <ChevronRight size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              className="theme-toggle-landing-btn"
+              title={theme === 'light' ? 'Switch to Dark Mode (🌙)' : 'Switch to Light Mode (☀️)'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'var(--slate-850)', border: '1px solid var(--card-border)',
+                borderRadius: '10px', padding: '8px 14px', cursor: 'pointer',
+                color: 'var(--slate-200)', fontSize: '0.82rem', fontWeight: 600,
+                transition: 'all 0.2s'
+              }}
+            >
+              {theme === 'light' ? (
+                <>
+                  <Moon size={16} style={{ color: '#64748b' }} />
+                  <span>Dark</span>
+                </>
+              ) : (
+                <>
+                  <Sun size={16} style={{ color: '#fbbf24' }} />
+                  <span>Light</span>
+                </>
+              )}
+            </button>
+          )}
+          <button className="landing-nav-btn" onClick={onGetStarted}>
+            <span>Sign In</span>
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </nav>
 
       {/* ── HERO SECTION WITH REALISTIC TEA ESTATE IMAGERY ── */}
@@ -173,7 +201,7 @@ export default function LandingPage({ onGetStarted }) {
           </h1>
 
           <p className="hero-subtitle">
-            Synchronize leaf weighbridge intake, multi-stage factory processing, 
+            Synchronize leaf weighbridge intake, multi-stage factory processing,
             Colombo auction grade sorting, and supplier disbursements with precision IoT analytics.
           </p>
 
@@ -208,9 +236,9 @@ export default function LandingPage({ onGetStarted }) {
         <div className="hero-visual">
           <div className="hero-image-card">
             <div className="hero-image-wrapper">
-              <img 
-                src="/images/tea_plantation_hero.jpg" 
-                alt="Ceylon Tea Estate Sunrise in Nuwara Eliya" 
+              <img
+                src="/images/tea_plantation_hero.jpg"
+                alt="Ceylon Tea Estate Sunrise in Nuwara Eliya"
                 className="hero-main-img"
               />
               <div className="hero-image-gradient" />
@@ -290,13 +318,13 @@ export default function LandingPage({ onGetStarted }) {
         <div className="factory-preview-layout">
           {/* Main Visual: High-tech Factory Interior */}
           <div className="factory-image-container">
-            <img 
-              src="/images/tea_factory_indoor.jpg" 
-              alt="TeaSyncPro Smart Factory Interior" 
-              className="factory-main-img" 
+            <img
+              src="/images/tea_factory_indoor.jpg"
+              alt="TeaSyncPro Smart Factory Interior"
+              className="factory-main-img"
             />
             <div className="factory-image-overlay" />
-            
+
             {/* Overlay interactive stage chips */}
             <div className="factory-hud-badge top-left">
               <span className="hud-dot" />
@@ -317,8 +345,8 @@ export default function LandingPage({ onGetStarted }) {
 
             <div className="stage-tabs">
               {Object.entries(stages).map(([key, stg]) => (
-                <div 
-                  key={key} 
+                <div
+                  key={key}
                   className={`stage-tab-card ${activeTab === key ? 'active' : ''}`}
                   onClick={() => setActiveTab(key)}
                 >
@@ -355,17 +383,17 @@ export default function LandingPage({ onGetStarted }) {
           {/* Card 1: Fresh Green Leaves */}
           <div className="quality-card">
             <div className="quality-card-img-wrap">
-              <img 
-                src="/images/fresh_tea_leaves.jpg" 
-                alt="Two leaves and a bud Ceylon tea shoot" 
-                className="quality-card-img" 
+              <img
+                src="/images/fresh_tea_leaves.jpg"
+                alt="Two leaves and a bud Ceylon tea shoot"
+                className="quality-card-img"
               />
               <span className="quality-card-tag">Strict Quality Check</span>
             </div>
             <div className="quality-card-content">
               <h3>Two Leaves &amp; a Bud Intake</h3>
               <p>
-                Optical leaf counters and weighing sensors verify harvest freshness, 
+                Optical leaf counters and weighing sensors verify harvest freshness,
                 moisture deducts, and coarse leaf percentage right at the collection gate.
               </p>
               <div className="quality-checklist">
@@ -379,17 +407,17 @@ export default function LandingPage({ onGetStarted }) {
           {/* Card 2: Tea Cup & Grading */}
           <div className="quality-card">
             <div className="quality-card-img-wrap">
-              <img 
-                src="/images/tea_cup_grading.jpg" 
-                alt="Ceylon tea liquor tasting and dry leaf grades" 
-                className="quality-card-img" 
+              <img
+                src="/images/tea_cup_grading.jpg"
+                alt="Ceylon tea liquor tasting and dry leaf grades"
+                className="quality-card-img"
               />
               <span className="quality-card-tag amber">Export Cupping Standards</span>
             </div>
             <div className="quality-card-content">
               <h3>Colombo Auction Tea Grading</h3>
               <p>
-                Classify output batches into premium BOPF, BOP, Pekoe, and Dust grades with 
+                Classify output batches into premium BOPF, BOP, Pekoe, and Dust grades with
                 density measurement, tasting liquor scores, and export compliance barcodes.
               </p>
               <div className="quality-badges-row">
