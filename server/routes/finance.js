@@ -1,11 +1,23 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // GET all supplier payments
-router.get('/payments', (req, res) => {
+router.get('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer', 'Supplier'), (req, res) => {
   try {
+    if (req.user.role === 'Supplier') {
+      const supId = req.user.supplier_id || 1;
+      const payments = query(`
+        SELECT p.*, s.name AS supplier_name, s.phone AS supplier_phone, s.bank_name, s.bank_account
+        FROM supplier_payment p
+        JOIN supplier s ON p.supplier_id = s.supplier_id
+        WHERE p.supplier_id = ?
+        ORDER BY p.payment_id DESC
+      `, [supId]);
+      return res.json(payments);
+    }
     const payments = query(`
       SELECT 
         p.*,
@@ -24,7 +36,7 @@ router.get('/payments', (req, res) => {
 });
 
 // POST new supplier payment
-router.post('/payments', (req, res) => {
+router.post('/payments', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
   try {
     const {
       invoice_no,
@@ -73,7 +85,7 @@ router.post('/payments', (req, res) => {
 });
 
 // PUT update payment status (e.g., mark as 'Paid')
-router.put('/payments/:id/status', (req, res) => {
+router.put('/payments/:id/status', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
   try {
     const { id } = req.params;
     const { payment_status = 'Paid' } = req.body;

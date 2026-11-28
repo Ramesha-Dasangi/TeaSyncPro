@@ -1,10 +1,12 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+const PRODUCTION_ROLES = ['Administrator', 'Factory Manager', 'Withering Officer', 'Rolling Officer', 'Aeration Officer', 'Drying Officer', 'Inventory Officer'];
 
 // GET all production batches with stage logs summary
-router.get('/', (req, res) => {
+router.get('/', requireAuth, (req, res) => {
   try {
     const batches = query(`
       SELECT 
@@ -23,7 +25,7 @@ router.get('/', (req, res) => {
 });
 
 // GET single batch with full logs
-router.get('/:id', (req, res) => {
+router.get('/:id', requireAuth, (req, res) => {
   try {
     const batch = getOne(`SELECT * FROM production_batch WHERE batch_id = ?`, [req.params.id]);
     if (!batch) return res.status(404).json({ error: 'Batch not found' });
@@ -46,7 +48,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST new production batch
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
   try {
     const {
       batch_code,
@@ -74,7 +76,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT update production batch
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
   try {
     const { id } = req.params;
     const { batch_status, wastage_qty, input_qty } = req.body;
@@ -95,7 +97,7 @@ router.put('/:id', (req, res) => {
 });
 
 // GET all production stage logs
-router.get('/logs/all', (req, res) => {
+router.get('/logs/all', requireAuth, (req, res) => {
   try {
     const logs = query(`
       SELECT 
@@ -115,7 +117,7 @@ router.get('/logs/all', (req, res) => {
 });
 
 // POST production stage log
-router.post('/logs', (req, res) => {
+router.post('/logs', requireAuth, requireRole(...PRODUCTION_ROLES), (req, res) => {
   try {
     const {
       batch_id,
@@ -158,7 +160,7 @@ router.post('/logs', (req, res) => {
 });
 
 // GET stages list
-router.get('/meta/stages', (req, res) => {
+router.get('/meta/stages', requireAuth, (req, res) => {
   try {
     const stages = query(`SELECT * FROM production_stage ORDER BY stage_no ASC`);
     res.json(stages);

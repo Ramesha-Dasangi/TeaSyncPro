@@ -1,10 +1,11 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // GET employees
-router.get('/', (req, res) => {
+router.get('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
   try {
     const employees = query(`
       SELECT 
@@ -24,7 +25,7 @@ router.get('/', (req, res) => {
 });
 
 // POST employee
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const { name, phone, status = 'Active', join_date } = req.body;
     const date = join_date || new Date().toISOString().slice(0, 10);
@@ -41,7 +42,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT employee
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, phone, status } = req.body;
@@ -54,7 +55,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE employee
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const { id } = req.params;
     execute(`DELETE FROM employee WHERE employee_id = ?`, [id]);
@@ -65,7 +66,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // GET attendance
-router.get('/meta/attendance', (req, res) => {
+router.get('/meta/attendance', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
   try {
     const attendance = query(`
       SELECT 
@@ -82,7 +83,7 @@ router.get('/meta/attendance', (req, res) => {
 });
 
 // POST attendance
-router.post('/meta/attendance', (req, res) => {
+router.post('/meta/attendance', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const { employee_id, date, status = 'Present', work_hours = 8.0 } = req.body;
     const attDate = date || new Date().toISOString().slice(0, 10);

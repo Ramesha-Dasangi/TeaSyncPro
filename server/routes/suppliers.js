@@ -1,10 +1,11 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // GET all suppliers
-router.get('/', (req, res) => {
+router.get('/', requireAuth, (req, res) => {
   try {
     const suppliers = query(`
       SELECT 
@@ -23,7 +24,7 @@ router.get('/', (req, res) => {
 });
 
 // GET single supplier by ID
-router.get('/:id', (req, res) => {
+router.get('/:id', requireAuth, (req, res) => {
   try {
     const supplier = getOne(`SELECT * FROM supplier WHERE supplier_id = ?`, [req.params.id]);
     if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
@@ -35,7 +36,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST new supplier
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer'), (req, res) => {
   try {
     const {
       name,
@@ -65,7 +66,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT update supplier
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer', 'Finance Officer', 'Supplier'), (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -94,7 +95,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE supplier
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const { id } = req.params;
     execute(`DELETE FROM supplier WHERE supplier_id = ?`, [id]);

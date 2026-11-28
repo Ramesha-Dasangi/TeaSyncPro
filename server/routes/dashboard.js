@@ -1,9 +1,10 @@
 import express from 'express';
 import { query, getOne } from '../config/dbAdapter.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/summary', (req, res) => {
+router.get('/summary', requireAuth, (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
 

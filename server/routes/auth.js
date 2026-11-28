@@ -1,6 +1,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import { query, getOne } from '../config/dbAdapter.js';
+import { signToken, requireAuth, requireRole, rateLimitLogin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ function verifyPassword(password, storedHash, username) {
 }
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', rateLimitLogin, (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) {
@@ -54,7 +55,7 @@ router.post('/login', (req, res) => {
       return res.status(403).json({ error: 'User account is inactive' });
     }
 
-    res.json({
+    const userPayload = {
       user_id: user.user_id,
       username: user.username,
       email: user.email,
@@ -63,14 +64,17 @@ router.post('/login', (req, res) => {
       employee_id: user.employee_id,
       supplier_id: user.role === 'Supplier' ? 1 : null,
       name: user.employee_name || (user.role === 'Supplier' ? 'Asela Kumara' : user.username)
-    });
+    };
+
+    const token = signToken(userPayload);
+    res.json({ ...userPayload, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /api/auth/users
-router.get('/users', (req, res) => {
+router.get('/users', requireAuth, requireRole('Administrator', 'Factory Manager'), (req, res) => {
   try {
     const users = query(`
       SELECT

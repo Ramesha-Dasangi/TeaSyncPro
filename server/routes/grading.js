@@ -1,10 +1,12 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+const GRADING_ROLES = ['Administrator', 'Factory Manager', 'Grading Officer', 'Packaging Officer', 'Inventory Officer'];
 
 // GET all finished outputs (packaged lots)
-router.get('/', (req, res) => {
+router.get('/', requireAuth, (req, res) => {
   try {
     const outputs = query(`
       SELECT 
@@ -25,7 +27,7 @@ router.get('/', (req, res) => {
 });
 
 // POST new finished output (packaging lot)
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
   try {
     const {
       batch_id,
@@ -71,7 +73,7 @@ router.post('/', (req, res) => {
 });
 
 // DELETE finished output
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requireRole(...GRADING_ROLES), (req, res) => {
   try {
     const { id } = req.params;
     execute(`DELETE FROM finished_output WHERE output_id = ?`, [id]);
@@ -82,7 +84,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // GET tea grades
-router.get('/grades', (req, res) => {
+router.get('/grades', requireAuth, (req, res) => {
   try {
     const grades = query(`
       SELECT 

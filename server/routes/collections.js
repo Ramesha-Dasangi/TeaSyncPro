@@ -1,10 +1,11 @@
 import express from 'express';
 import { query, getOne, execute } from '../config/dbAdapter.js';
+import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // GET all collections with supplier, schedule, and rate details
-router.get('/', (req, res) => {
+router.get('/', requireAuth, (req, res) => {
   try {
     const collections = query(`
       SELECT 
@@ -27,7 +28,7 @@ router.get('/', (req, res) => {
 });
 
 // POST new collection
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
   try {
     const {
       slip_no,
@@ -41,9 +42,12 @@ router.post('/', (req, res) => {
       rate_id = 1
     } = req.body;
 
-    const gross = parseFloat(gross_weight) || 0;
+    const gross = parseFloat(gross_weight);
     const water = parseFloat(water_deduction_kg) || 0;
     const bag = parseFloat(bag_deduction_kg) || 0;
+    if (!Number.isFinite(gross) || gross <= 0 || water < 0 || bag < 0 || (water + bag) > gross) {
+      return res.status(400).json({ error: 'Invalid weight values: gross_weight must be > 0 and deductions cannot exceed gross weight.' });
+    }
     const net = Math.max(0, gross - water - bag);
 
     const generatedSlip = slip_no || `SLIP-${Date.now().toString().slice(-6)}`;
@@ -79,7 +83,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT update collection
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -112,7 +116,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE collection
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
   try {
     const { id } = req.params;
     execute(`DELETE FROM tea_collection WHERE collection_id = ?`, [id]);
@@ -123,7 +127,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // GET schedules
-router.get('/meta/schedules', (req, res) => {
+router.get('/meta/schedules', requireAuth, (req, res) => {
   try {
     const schedules = query(`SELECT * FROM collection_schedule ORDER BY date DESC`);
     res.json(schedules);
@@ -133,7 +137,7 @@ router.get('/meta/schedules', (req, res) => {
 });
 
 // POST schedule
-router.post('/meta/schedules', (req, res) => {
+router.post('/meta/schedules', requireAuth, requireRole('Administrator', 'Factory Manager', 'Collection Officer'), (req, res) => {
   try {
     const { date, route_name, vehicle_no } = req.body;
     const result = execute(`
@@ -148,7 +152,7 @@ router.post('/meta/schedules', (req, res) => {
 });
 
 // GET rates
-router.get('/meta/rates', (req, res) => {
+router.get('/meta/rates', requireAuth, (req, res) => {
   try {
     const rates = query(`SELECT * FROM daily_leaf_rate ORDER BY effective_date DESC`);
     res.json(rates);
@@ -158,7 +162,7 @@ router.get('/meta/rates', (req, res) => {
 });
 
 // POST rate
-router.post('/meta/rates', (req, res) => {
+router.post('/meta/rates', requireAuth, requireRole('Administrator', 'Factory Manager', 'Finance Officer'), (req, res) => {
   try {
     const { effective_date, rate_per_kg } = req.body;
     const result = execute(`
