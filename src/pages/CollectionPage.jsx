@@ -64,33 +64,29 @@ export default function CollectionPage({ user }) {
   const [notification, setNotification] = useState('');
 
   // ─── STATE 1: COLLECTIONS (CRUD + VERIFICATION) ──────────────────────────
-  const [collections, setCollections] = useState(TEA_COLLECTIONS.map((c, i) => ({
-    ...c,
-    verification_status: i % 3 === 0 ? 'Verified' : i % 5 === 0 ? 'Flagged' : 'Pending Verification',
-    leaf_quality: i % 2 === 0 ? 'Tender Two Leaves & Bud' : 'Standard Green Leaf',
-    verified_by: i % 3 === 0 ? (user?.name || 'Chaminda Rathnayake') : null
-  })));
+  const [collections, setCollections] = useState([]);
 
-  // Fetch real collections and schedules from Database API on mount
+  // Fetch real collections, schedules, suppliers, and rates from Database API on mount
   useEffect(() => {
     let active = true;
     async function loadData() {
       try {
-        const [dbCollections, dbSchedules] = await Promise.all([
+        const [dbCollections, dbSchedules, dbSuppliers, dbRates] = await Promise.all([
           api.getCollections(),
-          api.getSchedules()
+          api.getSchedules(),
+          api.getSuppliers(),
+          api.getRates()
         ]);
-        if (active && dbCollections && dbCollections.length > 0) {
-          setCollections(dbCollections.map((c, i) => ({
-            ...c,
-            verification_status: c.verification_status || (i % 3 === 0 ? 'Verified' : 'Pending Verification'),
-            leaf_quality: c.leaf_quality || 'Standard Green Leaf',
-            verified_by: c.verified_by || (user?.name || 'Chaminda Rathnayake')
-          })));
-        }
-        if (active && dbSchedules && dbSchedules.length > 0) {
-          setSchedules(dbSchedules);
-        }
+        if (!active) return;
+        setCollections((dbCollections || TEA_COLLECTIONS).map((c, i) => ({
+          ...c,
+          verification_status: c.verification_status || (i % 3 === 0 ? 'Verified' : 'Pending Verification'),
+          leaf_quality: c.leaf_quality || 'Standard Green Leaf',
+          verified_by: c.verified_by || (user?.name || 'Chaminda Rathnayake')
+        })));
+        setSchedules(dbSchedules || COLLECTION_SCHEDULES);
+        setSuppliersList(dbSuppliers || SUPPLIERS);
+        if (dbRates && dbRates.length > 0) setRates(dbRates);
       } catch (err) {
         console.warn('API fetch fallback to local state:', err);
       }
@@ -106,7 +102,7 @@ export default function CollectionPage({ user }) {
   const [selectedSlip, setSelectedSlip] = useState(null);
 
   // ─── STATE 2: SCHEDULES ──────────────────────────────────────────────────
-  const [schedules, setSchedules] = useState(COLLECTION_SCHEDULES.map(s => ({ ...s })));
+  const [schedules, setSchedules] = useState([]);
   const [scheduleSearch, setScheduleSearch] = useState('');
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
@@ -115,8 +111,9 @@ export default function CollectionPage({ user }) {
     vehicle_no: 'WP-KD-3456'
   });
 
-  // ─── STATE 3: SUPPLIERS ──────────────────────────────────────────────────
-  const [suppliersList] = useState(SUPPLIERS);
+  // ─── STATE 3: SUPPLIERS & RATES ──────────────────────────────────────────
+  const [suppliersList, setSuppliersList] = useState([]);
+  const [rates, setRates] = useState(DAILY_LEAF_RATES);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierTypeFilter, setSupplierTypeFilter] = useState('ALL');
 
@@ -129,14 +126,14 @@ export default function CollectionPage({ user }) {
     leaf_quality: 'Tender Two Leaves & Bud'
   });
 
-  const currentRate = DAILY_LEAF_RATES[0]?.rate_per_kg || 148.50;
+  const currentRate = rates[0]?.rate_per_kg || DAILY_LEAF_RATES[0]?.rate_per_kg || 148.50;
 
   const notify = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(''), 4000);
   };
 
-  const getSupplier = (id) => SUPPLIERS.find(s => s.supplier_id === Number(id));
+  const getSupplier = (id) => suppliersList.find(s => s.supplier_id === Number(id));
   const getSupplierName = (id) => getSupplier(id)?.name || `Supplier #${id}`;
   const getRouteName = (scheduleId) => schedules.find(s => s.schedule_id === Number(scheduleId))?.route_name || 'Main Route';
 
@@ -1068,6 +1065,9 @@ export default function CollectionPage({ user }) {
               <h2 style={{ fontSize: 17, fontWeight: 900, color: '#10b981', margin: 0 }}>TEASYNC PRO ESTATE WEIGHBRIDGE</h2>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
                 Official Green Leaf Weighment Ticket
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                teasyncpro.portal@gmail.com &bull; +94 72 560 3073
               </div>
               <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, marginTop: 4, color: 'var(--text-primary)' }}>
                 SLIP #REC-{String(selectedSlip.collection_id).padStart(4, '0')}
