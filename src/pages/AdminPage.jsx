@@ -58,13 +58,19 @@ function FormRow({ label, children }) {
 
 // ─── USERS TAB ───────────────────────────────────────────────────────────────
 function UsersTab({ notify }) {
-  const [records, setRecords] = useState(USERS.map(u => ({ ...u })));
+  const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
   const emptyForm = { name: '', username: '', password: '', role: ROLES.WITHERING_OFFICER, employee_id: '' };
   const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    api.getUsers().then(data => {
+      if (data) setRecords(data.map(u => ({ ...u, name: u.name || u.username })));
+    });
+  }, []);
 
   const filtered = records.filter(r =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -218,19 +224,19 @@ function UsersTab({ notify }) {
 
 // ─── SUPPLIERS TAB ───────────────────────────────────────────────────────────
 function SuppliersTab({ notify }) {
-  const [records, setRecords] = useState(SUPPLIERS.map(s => ({ ...s })));
+  const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
-  const emptyForm = { name: '', supplier_type: 'Commercial', phone: '', email: '', nic: '', address: '', payment: 'Monthly', transport_mode: 'Own Vehicle', bank_name: '', bank_account: '', status: 'Active' };
+  const emptyForm = { name: '', supplier_type: 'Smallholder', phone: '', email: '', nic: '', address: '', payment: 'Monthly', transport_mode: 'Own Vehicle', bank_name: '', bank_account: '', status: 'Active' };
   const [form, setForm] = useState(emptyForm);
 
   // Load real suppliers from DB
   useEffect(() => {
     api.getSuppliers().then(data => {
-      if (data && data.length) {
+      if (data) {
         setRecords(data.map(s => ({
           ...s,
           join_date: s.registered_date || s.join_date || new Date().toISOString().slice(0, 10),
@@ -1084,7 +1090,7 @@ const SAMPLE_EMPLOYEES = [
 ];
 
 function EmployeesTab({ notify }) {
-  const [records, setRecords] = useState(SAMPLE_EMPLOYEES);
+  const [records, setRecords] = useState([]);
   const [search, setSearch]   = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [showAdd, setShowAdd] = useState(false);
@@ -1095,7 +1101,7 @@ function EmployeesTab({ notify }) {
 
   useEffect(() => {
     api.getEmployees().then(data => {
-      if (data && data.length) {
+      if (data) {
         setRecords(data.map(e => ({
           employee_id: e.employee_id,
           emp_id: `E${String(e.employee_id).padStart(3, '0')}`,
@@ -1304,8 +1310,8 @@ function SettingsTab({ notify }) {
     factoryName: 'TeaSyncPro Ceylon Tea Factory',
     factoryCode: 'TSP-CLN-001',
     location: 'Kandy District, Central Province, Sri Lanka',
-    contactEmail: 'admin@teasyncpro.lk',
-    contactPhone: '081-2234567',
+    contactEmail: 'teasyncpro.portal@gmail.com',
+    contactPhone: '+94 72 560 3073',
     leafRateUnit: 'kg',
     currency: 'LKR',
     timeZone: 'Asia/Colombo',
