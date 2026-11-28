@@ -247,7 +247,7 @@ export default function SupplierPaymentsPage({ user }) {
                   TEASYNC PRO FACTORY DIVISION
                 </h2>
                 <p style={{ fontSize: '0.8rem', color: 'var(--slate-400)' }}>
-                  Nuwara Eliya High-Grown Tea Estate &bull; Treasury &amp; Finance
+                  Nuwara Eliya High-Grown Tea Estate &bull; teasyncpro.portal@gmail.com &bull; +94 72 560 3073
                 </p>
                 <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)', marginTop: '4px' }}>
                   Voucher: <strong className="font-mono text-emerald-500">#VCH-{String(selectedPayment.payment_id).padStart(4, '0')}</strong> &bull; Date: {selectedPayment.pay_date}
