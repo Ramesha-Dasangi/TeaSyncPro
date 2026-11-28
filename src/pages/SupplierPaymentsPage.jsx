@@ -1,17 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DollarSign, Receipt, Calendar, ArrowUpRight, CheckCircle2,
   Clock, FileText, Printer, X, Download, ShieldCheck
 } from 'lucide-react';
 import { SUPPLIER_PAYMENTS, SUPPLIERS, TEA_COLLECTIONS, DAILY_LEAF_RATES } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function SupplierPaymentsPage({ user }) {
   const supplierId = user?.supplier_id || 1;
-  const supplier = SUPPLIERS.find(s => s.supplier_id === supplierId) || SUPPLIERS[0];
-  const currentRate = DAILY_LEAF_RATES[0]?.rate_per_kg || 148.50;
+  const [supplier, setSupplier] = useState(SUPPLIERS.find(s => s.supplier_id === supplierId) || SUPPLIERS[0]);
+  const [myPayments, setMyPayments] = useState(SUPPLIER_PAYMENTS.filter(p => p.supplier_id === supplierId));
+  const [myCollections, setMyCollections] = useState(TEA_COLLECTIONS.filter(c => c.supplier_id === supplierId));
+  const [currentRate, setCurrentRate] = useState(DAILY_LEAF_RATES[0]?.rate_per_kg || 148.50);
 
-  // Filter payments for this supplier
-  const myPayments = SUPPLIER_PAYMENTS.filter(p => p.supplier_id === supplierId);
+  useEffect(() => {
+    // Load real payments and collections for this supplier
+    api.getSupplierPayments().then(data => {
+      if (data && data.length) {
+        setMyPayments(
+          data
+            .filter(p => p.supplier_id === supplierId)
+            .map(p => ({ ...p, amount: p.net_payable ?? p.amount ?? 0 }))
+        );
+      }
+    });
+    api.getCollections().then(data => {
+      if (data && data.length) setMyCollections(data.filter(c => c.supplier_id === supplierId));
+    });
+    api.getSuppliers().then(data => {
+      if (data && data.length) {
+        const found = data.find(s => s.supplier_id === supplierId);
+        if (found) setSupplier(found);
+      }
+    });
+    api.getRates().then(data => {
+      if (data && data.length) setCurrentRate(data[0].rate_per_kg);
+    });
+  }, [supplierId]);
 
   // Compute stats
   const totalPaid = myPayments
@@ -23,8 +48,7 @@ export default function SupplierPaymentsPage({ user }) {
     .reduce((s, p) => s + p.amount, 0);
 
   // Recent leaf supplied by this supplier
-  const myCollections = TEA_COLLECTIONS.filter(c => c.supplier_id === supplierId);
-  const totalNetLeaf = myCollections.reduce((s, c) => s + c.net_weight, 0);
+  const totalNetLeaf = myCollections.reduce((s, c) => s + (c.net_weight || 0), 0);
   const totalLeafValue = totalNetLeaf * currentRate;
 
   // Modal State for Payment Voucher Details

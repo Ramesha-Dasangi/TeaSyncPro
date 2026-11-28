@@ -1,17 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   RotateCw, Plus, CheckCircle2, Clock, Activity, Gauge,
   Search, Filter, Edit3, Trash2, X, AlertTriangle, Eye, Factory, Wind, Layers
 } from 'lucide-react';
 import { ROLLING_RECORDS, WITHERING_RECORDS, PRODUCTION_BATCHES } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function RollingPage({ user, onNavigate }) {
   const [records, setRecords] = useState(ROLLING_RECORDS);
   const [witheringRecords] = useState(WITHERING_RECORDS);
-  const [batches] = useState(PRODUCTION_BATCHES);
+  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
   const [activeTab, setActiveTab] = useState('rolling_records'); // 'rolling_records' | 'production_batches' | 'withering_records'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'In Progress' | 'Completed'
+
+  // Load real production batches and rolling stage logs from DB
+  useEffect(() => {
+    api.getBatches().then(data => { if (data && data.length) setBatches(data); });
+    api.getStageLogs().then(data => {
+      if (data && data.length) {
+        const rollingLogs = data.filter(l => l.stage_id === 2);
+        if (rollingLogs.length) {
+          setRecords(rollingLogs.map((l, i) => ({
+            roll_id: l.stage_log_id || (i + 1),
+            batch_id: l.batch_id,
+            wither_id: 1,
+            roller_no: l.machine_no || `RM-0${i + 1}`,
+            roller_name: `Orthodox Roller #0${i + 1}`,
+            roll_date: l.start_time?.split(' ')[0] || new Date().toISOString().split('T')[0],
+            roll_turn: 'Turn 1 (First Roll)',
+            start_time: l.start_time?.split(' ')[1]?.slice(0, 5) || '10:30',
+            end_time: l.end_time?.split(' ')[1]?.slice(0, 5) || '...',
+            input_withered_qty: l.input_weight || 0,
+            output_rolled_qty: l.output_weight || 0,
+            weight_loss: l.weight_loss || 0,
+            dhool_percentage: 42.5,
+            roller_rpm: 42,
+            pressure_schedule: '5m On / 5m Off (Medium Pressure)',
+            status: l.end_time ? 'Completed' : 'In Progress',
+            officer_name: user?.name || 'Rolling Officer',
+            remarks: `Batch #${l.batch_id} - Rolling stage log`
+          })));
+        }
+      }
+    });
+  }, []);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,13 +102,23 @@ export default function RollingPage({ user, onNavigate }) {
   });
 
   // 1. Add Rolling Record Handler
-  const handleAddRecord = (e) => {
+  const handleAddRecord = async (e) => {
     e.preventDefault();
     const inputQty = parseFloat(formData.input_withered_qty) || 0;
     const outputQty = parseFloat(formData.output_rolled_qty) || 0;
     const weightLoss = Math.max(0, inputQty - outputQty);
 
-    const newId = records.length > 0 ? Math.max(...records.map(r => r.roll_id)) + 1 : 1;
+    const saved = await api.createStageLog({
+      batch_id: parseInt(formData.batch_id, 10),
+      stage_id: 2,
+      machine_no: formData.roller_no,
+      input_weight: inputQty,
+      output_weight: outputQty,
+      start_time: `${formData.roll_date} ${formData.start_time}:00`,
+      end_time: formData.end_time ? `${formData.roll_date} ${formData.end_time}:00` : null
+    });
+
+    const newId = saved?.stage_log_id || (records.length > 0 ? Math.max(...records.map(r => r.roll_id)) + 1 : 1);
     const rollerMap = {
       'RM-01': 'Orthodox Roller #01',
       'RM-02': 'Orthodox Roller #02',

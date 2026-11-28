@@ -1,17 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity, Plus, CheckCircle2, Clock, Thermometer, Droplets,
   Search, Filter, Edit3, Trash2, X, AlertTriangle, Eye, Factory, RotateCw, Sparkles
 } from 'lucide-react';
 import { AERATION_RECORDS, ROLLING_RECORDS, PRODUCTION_BATCHES } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function AerationPage({ user, onNavigate }) {
   const [records, setRecords] = useState(AERATION_RECORDS);
   const [rollingRecords] = useState(ROLLING_RECORDS);
-  const [batches] = useState(PRODUCTION_BATCHES);
+  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
   const [activeTab, setActiveTab] = useState('aeration_records'); // 'aeration_records' | 'production_batches' | 'rolling_records'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'In Progress' | 'Completed'
+
+  // Load real production batches and aeration stage logs from DB
+  useEffect(() => {
+    api.getBatches().then(data => { if (data && data.length) setBatches(data); });
+    api.getStageLogs().then(data => {
+      if (data && data.length) {
+        const aerationLogs = data.filter(l => l.stage_id === 3);
+        if (aerationLogs.length) {
+          setRecords(aerationLogs.map((l, i) => ({
+            aeration_id: l.stage_log_id || (i + 1),
+            batch_id: l.batch_id,
+            roll_id: 1,
+            bed_no: l.machine_no || `AB-0${i + 1}`,
+            bed_name: `Fermentation Bed #0${i + 1}`,
+            aeration_date: l.start_time?.split(' ')[0] || new Date().toISOString().split('T')[0],
+            start_time: l.start_time?.split(' ')[1]?.slice(0, 5) || '14:00',
+            end_time: l.end_time?.split(' ')[1]?.slice(0, 5) || '...',
+            input_rolled_qty: l.input_weight || 0,
+            output_fermented_qty: l.output_weight || 0,
+            weight_loss: l.weight_loss || 0,
+            ferment_duration_mins: 150,
+            bed_temperature: l.temperature_celsius ?? 28.0,
+            humidity_pct: 90,
+            color_development: 'Bright Coppery',
+            aroma_character: 'Brisk Floral',
+            status: l.end_time ? 'Completed' : 'In Progress',
+            officer_name: user?.name || 'Aeration Officer',
+            remarks: `Batch #${l.batch_id} - Aeration stage log`
+          })));
+        }
+      }
+    });
+  }, []);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -72,13 +106,24 @@ export default function AerationPage({ user, onNavigate }) {
   });
 
   // 1. Add Aeration Record Handler
-  const handleAddRecord = (e) => {
+  const handleAddRecord = async (e) => {
     e.preventDefault();
     const inputQty = parseFloat(formData.input_rolled_qty) || 0;
     const outputQty = parseFloat(formData.output_fermented_qty) || 0;
     const weightLoss = Math.max(0, inputQty - outputQty);
 
-    const newId = records.length > 0 ? Math.max(...records.map(r => r.aeration_id)) + 1 : 1;
+    const saved = await api.createStageLog({
+      batch_id: parseInt(formData.batch_id, 10),
+      stage_id: 3,
+      machine_no: formData.bed_no,
+      input_weight: inputQty,
+      output_weight: outputQty,
+      temperature_celsius: parseFloat(formData.bed_temperature) || 28.0,
+      start_time: `${formData.aeration_date} ${formData.start_time}:00`,
+      end_time: formData.end_time ? `${formData.aeration_date} ${formData.end_time}:00` : null
+    });
+
+    const newId = saved?.stage_log_id || (records.length > 0 ? Math.max(...records.map(r => r.aeration_id)) + 1 : 1);
     const bedMap = {
       'AB-01': 'Fermentation Bed #01',
       'AB-02': 'Fermentation Bed #02',

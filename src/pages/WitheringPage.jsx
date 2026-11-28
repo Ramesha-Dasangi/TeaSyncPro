@@ -1,16 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Wind, Plus, CheckCircle2, AlertCircle, Clock, Thermometer, Droplets,
   Search, Filter, Edit3, Trash2, X, AlertTriangle, ArrowRight, Eye, Factory, RefreshCw
 } from 'lucide-react';
 import { WITHERING_RECORDS, PRODUCTION_BATCHES } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function WitheringPage({ user, onNavigate }) {
   const [records, setRecords] = useState(WITHERING_RECORDS);
-  const [batches] = useState(PRODUCTION_BATCHES);
+  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
   const [activeTab, setActiveTab] = useState('withering_records'); // 'withering_records' | 'production_batches'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'In Progress' | 'Completed'
+
+  // Load real production batches & stage logs from DB
+  useEffect(() => {
+    api.getBatches().then(data => { if (data && data.length) setBatches(data); });
+    api.getStageLogs().then(data => {
+      if (data && data.length) {
+        const witheringLogs = data.filter(l => l.stage_id === 1);
+        if (witheringLogs.length) {
+          setRecords(witheringLogs.map((l, i) => ({
+            wither_id: l.stage_log_id || (i + 1),
+            batch_id: l.batch_id,
+            trough_no: l.machine_no || `TR-0${i + 1}`,
+            trough_name: `Withering Trough #0${i + 1}`,
+            wither_date: l.start_time?.split(' ')[0] || new Date().toISOString().split('T')[0],
+            start_time: l.start_time?.split(' ')[1]?.slice(0, 5) || '06:30',
+            end_time: l.end_time?.split(' ')[1]?.slice(0, 5) || '',
+            green_leaf_qty: l.input_weight || 0,
+            withered_leaf_qty: l.output_weight || 0,
+            moisture_loss_pct: l.input_weight ? ((l.weight_loss / l.input_weight) * 100).toFixed(1) : 0,
+            temperature: l.temperature_celsius ?? 24.5,
+            humidity: 64,
+            fan_speed: 'High Airflow (Forward)',
+            status: l.end_time ? 'Completed' : 'In Progress',
+            officer_name: user?.name || 'Withering Officer',
+            remarks: `Batch #${l.batch_id} - Withering stage log`
+          })));
+        }
+      }
+    });
+  }, []);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -66,7 +97,7 @@ export default function WitheringPage({ user, onNavigate }) {
   });
 
   // 1. Add Withering Record Handler
-  const handleAddRecord = (e) => {
+  const handleAddRecord = async (e) => {
     e.preventDefault();
     const greenQty = parseFloat(formData.green_leaf_qty) || 0;
     const witheredQty = parseFloat(formData.withered_leaf_qty) || 0;
@@ -74,7 +105,18 @@ export default function WitheringPage({ user, onNavigate }) {
       ? (((greenQty - witheredQty) / greenQty) * 100).toFixed(1)
       : 0;
 
-    const newId = records.length > 0 ? Math.max(...records.map(r => r.wither_id)) + 1 : 1;
+    const saved = await api.createStageLog({
+      batch_id: parseInt(formData.batch_id, 10),
+      stage_id: 1,
+      machine_no: formData.trough_no,
+      input_weight: greenQty,
+      output_weight: witheredQty,
+      temperature_celsius: parseFloat(formData.temperature) || 24.0,
+      start_time: `${formData.wither_date} ${formData.start_time}:00`,
+      end_time: formData.end_time ? `${formData.wither_date} ${formData.end_time}:00` : null
+    });
+
+    const newId = saved?.stage_log_id || (records.length > 0 ? Math.max(...records.map(r => r.wither_id)) + 1 : 1);
     const newRecord = {
       wither_id: newId,
       batch_id: parseInt(formData.batch_id, 10),

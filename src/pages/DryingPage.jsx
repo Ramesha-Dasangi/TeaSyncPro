@@ -1,16 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Flame, Plus, CheckCircle2, Clock, Thermometer, Gauge,
   Search, Filter, Edit3, Trash2, X, AlertTriangle, Eye, Factory, Sparkles, Activity
 } from 'lucide-react';
 import { DRYING_RECORDS, PRODUCTION_BATCHES } from '../data/mockData';
+import { api } from '../services/api';
 
 export default function DryingPage({ user, onNavigate }) {
   const [records, setRecords] = useState(DRYING_RECORDS);
-  const [batches] = useState(PRODUCTION_BATCHES);
+  const [batches, setBatches] = useState(PRODUCTION_BATCHES);
   const [activeTab, setActiveTab] = useState('drying_records'); // 'drying_records' | 'production_batches'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'In Progress' | 'Completed'
+
+  // Load real production batches and drying stage logs from DB
+  useEffect(() => {
+    api.getBatches().then(data => { if (data && data.length) setBatches(data); });
+    api.getStageLogs().then(data => {
+      if (data && data.length) {
+        const dryingLogs = data.filter(l => l.stage_id === 4);
+        if (dryingLogs.length) {
+          setRecords(dryingLogs.map((l, i) => ({
+            dry_id: l.stage_log_id || (i + 1),
+            batch_id: l.batch_id,
+            dryer_no: l.machine_no || `DM-0${i + 1}`,
+            dryer_name: `Vibro Fluid Bed Dryer #0${i + 1}`,
+            dry_date: l.start_time?.split(' ')[0] || new Date().toISOString().split('T')[0],
+            start_time: l.start_time?.split(' ')[1]?.slice(0, 5) || '18:30',
+            end_time: l.end_time?.split(' ')[1]?.slice(0, 5) || '...',
+            input_fermented_qty: l.input_weight || 0,
+            output_made_tea_qty: l.output_weight || 0,
+            moisture_out_pct: 2.9,
+            inlet_temp: l.temperature_celsius ?? 125,
+            exhaust_temp: 86,
+            feed_rate_kg_hr: 350,
+            status: l.end_time ? 'Completed' : 'In Progress',
+            officer_name: user?.name || 'Drying Officer',
+            remarks: `Batch #${l.batch_id} - Drying stage log`
+          })));
+        }
+      }
+    });
+  }, []);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -67,12 +98,23 @@ export default function DryingPage({ user, onNavigate }) {
   });
 
   // 1. Add Drying Record Handler
-  const handleAddRecord = (e) => {
+  const handleAddRecord = async (e) => {
     e.preventDefault();
     const inputQty = parseFloat(formData.input_fermented_qty) || 0;
     const outputQty = parseFloat(formData.output_made_tea_qty) || 0;
 
-    const newId = records.length > 0 ? Math.max(...records.map(r => r.dry_id)) + 1 : 1;
+    const saved = await api.createStageLog({
+      batch_id: parseInt(formData.batch_id, 10),
+      stage_id: 4,
+      machine_no: formData.dryer_no,
+      input_weight: inputQty,
+      output_weight: outputQty,
+      temperature_celsius: parseInt(formData.inlet_temp, 10) || 125,
+      start_time: `${formData.dry_date} ${formData.start_time}:00`,
+      end_time: formData.end_time ? `${formData.dry_date} ${formData.end_time}:00` : null
+    });
+
+    const newId = saved?.stage_log_id || (records.length > 0 ? Math.max(...records.map(r => r.dry_id)) + 1 : 1);
     const dryerMap = {
       'DM-01': 'Vibro Fluid Bed Dryer #01',
       'DM-02': 'Endless Chain Pressure Dryer #02',
