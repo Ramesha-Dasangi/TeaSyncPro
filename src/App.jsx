@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
 import Dashboard from './pages/Dashboard';
@@ -20,6 +21,7 @@ import SupplierPaymentsPage from './pages/SupplierPaymentsPage';
 import PackagingPage from './pages/PackagingPage';
 import FinancePage from './pages/FinancePage';
 import AdminPage from './pages/AdminPage';
+import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { ROLES } from './data/mockData';
 import { api } from './services/api';
 
@@ -45,7 +47,7 @@ const PAGE_ROLES = {
 };
 
 function App() {
-  // view controls which screen is shown: 'landing' | 'login' | 'app'
+  // view controls which screen is shown: 'landing' | 'login' | 'register' | 'app'
   const [view, setView] = useState('landing');
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -93,12 +95,30 @@ function App() {
 
   // show landing page first
   if (view === 'landing') {
-    return <LandingPage onGetStarted={() => setView('login')} theme={theme} onToggleTheme={toggleTheme} />;
+    return (
+      <>
+        <LandingPage onGetStarted={() => setView('login')} theme={theme} onToggleTheme={toggleTheme} />
+        <FloatingWhatsApp />
+      </>
+    );
   }
 
   // show login page after Get Started clicked
   if (view === 'login') {
-    return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} theme={theme} onToggleTheme={toggleTheme} />;
+    return (
+      <>
+        <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} theme={theme} onToggleTheme={toggleTheme} onRegister={() => setView('register')} />
+        <FloatingWhatsApp />
+      </>
+    );
+  }
+  if (view === 'register') {
+    return (
+      <>
+        <RegisterPage onBack={() => setView('login')} />
+        <FloatingWhatsApp />
+      </>
+    );
   }
 
   // render view based on active tab with RBAC guard
@@ -173,12 +193,14 @@ function App() {
           user={user}
           theme={theme}
           onToggleTheme={toggleTheme}
+          onNavigate={setCurrentPage}
         />
         {/* page content container */}
         <main className="page-content">
           {renderPage()}
         </main>
       </div>
+      <FloatingWhatsApp />
     </div>
   );
 }
