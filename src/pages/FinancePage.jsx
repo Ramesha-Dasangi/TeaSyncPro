@@ -83,12 +83,23 @@ export default function FinancePage({ user, onNavigate }) {
     market_ref: 'Colombo Tea Auction High Grown Elevation Index'
   });
 
-  // ─── STATE 3: SUPPLIERS & COLLECTIONS (from DB) ──────────────────────────
+  // ─── STATE 3: SUPPLIERS, COLLECTIONS & SALES INVOICES (from DB) ──────────
   const [suppliers, setSuppliers] = useState(SUPPLIERS);
   const [collections, setCollections] = useState(TEA_COLLECTIONS);
+  const [salesInvoices, setSalesInvoices] = useState([]);
+  const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({
+    buyer_name: '',
+    invoice_date: new Date().toISOString().slice(0, 10),
+    total_weight_kg: '500',
+    total_amount: '925000',
+    tax_amount: '74000',
+    vehicle_no: 'WP-LH-4510',
+    payment_status: 'Pending'
+  });
 
   useEffect(() => {
-    // Load real payments, suppliers, collections and rates from DB
+    // Load real payments, suppliers, collections, rates and sales invoices from DB
     api.getSupplierPayments().then(data => {
       if (data && data.length) {
         setPayments(data.map(p => ({
@@ -104,6 +115,7 @@ export default function FinancePage({ user, onNavigate }) {
     });
     api.getSuppliers().then(data => { if (data && data.length) setSuppliers(data); });
     api.getCollections().then(data => { if (data && data.length) setCollections(data); });
+    api.getSalesInvoices().then(data => { if (data && data.length) setSalesInvoices(data); });
     api.getRates().then(data => {
       if (data && data.length) {
         const sorted = [...data].sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date));
@@ -238,6 +250,27 @@ export default function FinancePage({ user, onNavigate }) {
     notify(`New Daily Leaf Rate Rs. ${newRate.rate_per_kg.toFixed(2)} added as Active Rate!`);
   };
 
+  // ─── Process 4: Create & Mark Sales Invoice ──────────────────────────────
+  const handleAddSalesInvoice = async () => {
+    const saved = await api.createSalesInvoice({
+      ...invoiceForm,
+      total_weight_kg: parseFloat(invoiceForm.total_weight_kg),
+      total_amount: parseFloat(invoiceForm.total_amount),
+      tax_amount: parseFloat(invoiceForm.tax_amount) || 0
+    });
+    if (saved) {
+      setSalesInvoices(prev => [saved, ...prev]);
+      setShowAddInvoice(false);
+      notify(`Sales Invoice ${saved.invoice_no} created for ${saved.buyer_name}!`);
+    }
+  };
+
+  const handleMarkInvoicePaid = async (inv) => {
+    const updated = await api.updateSalesInvoiceStatus(inv.invoice_id, 'Paid');
+    setSalesInvoices(prev => prev.map(i => i.invoice_id === inv.invoice_id ? { ...i, payment_status: updated?.payment_status || 'Paid' } : i));
+    notify(`Sales Invoice ${inv.invoice_no} marked as Paid!`);
+  };
+
   const totalDisbursed = payments.filter(p => p.payment_status === 'Paid').reduce((s, p) => s + p.amount, 0);
   const totalPending = payments.filter(p => p.payment_status === 'Pending').reduce((s, p) => s + p.amount, 0);
   const activeSuppliersCount = suppliers.filter(s => s.status !== 'Inactive').length;
@@ -331,6 +364,14 @@ export default function FinancePage({ user, onNavigate }) {
         >
           <TrendingUp size={16} />
           3. View Daily Leaf Rates ({dailyRates.length})
+        </button>
+        <button
+          className={`tab-nav-btn ${activeTab === 'sales_invoices' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sales_invoices')}
+          style={{ padding: '10px 20px', fontSize: 14 }}
+        >
+          <FileText size={16} />
+          4. Sales Invoices ({salesInvoices.length})
         </button>
       </div>
 
@@ -686,6 +727,79 @@ export default function FinancePage({ user, onNavigate }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ─── PROCESS 4: SALES INVOICES ─────────────────────────────────── */}
+      {activeTab === 'sales_invoices' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Tea Auction &amp; Export Sales Invoices</h3>
+              <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>Manage commercial tea dispatches and buyer invoice settlements</p>
+            </div>
+            <button className="btn-primary" onClick={() => setShowAddInvoice(true)}>
+              <Plus size={15} /> Create Sales Invoice
+            </button>
+          </div>
+          <div className="content-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--table-header-bg)', borderBottom: '2px solid var(--border-color)' }}>
+                  {['Invoice No', 'Buyer / Broker', 'Date', 'Weight (kg)', 'Total (Rs.)', 'Status', 'Action'].map(h => (
+                    <th key={h} style={{ padding: '12px 14px', textAlign: h === 'Action' ? 'center' : 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {salesInvoices.map((inv, i) => (
+                  <tr key={inv.invoice_id} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 0 ? 'var(--table-row-even)' : 'transparent' }}>
+                    <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#10b981' }}>{inv.invoice_no}</td>
+                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{inv.buyer_name}</td>
+                    <td style={{ padding: '12px 14px' }}>{fmtDate(inv.invoice_date)}</td>
+                    <td style={{ padding: '12px 14px' }}>{Number(inv.total_weight_kg).toLocaleString()} kg</td>
+                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>{fmtCur(inv.total_amount)}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span className={inv.payment_status === 'Paid' ? 'status-badge-completed' : 'status-badge-pending'}>{inv.payment_status}</span>
+                    </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      {inv.payment_status !== 'Paid' ? (
+                        <button className="btn btn-sm btn-primary" onClick={() => handleMarkInvoicePaid(inv)}>Mark Paid</button>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {salesInvoices.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: 28, textAlign: 'center', color: 'var(--text-secondary)' }}>No sales invoices recorded yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {showAddInvoice && (
+            <Modal title="Create Sales Invoice" onClose={() => setShowAddInvoice(false)}>
+              <FormRow label="Buyer / Tea Broker Name">
+                <input className="input-field" value={invoiceForm.buyer_name} onChange={e => setInvoiceForm(p => ({ ...p, buyer_name: e.target.value }))} placeholder="Forbes & Walker Tea Brokers" />
+              </FormRow>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <FormRow label="Invoice Date">
+                  <input className="input-field" type="date" value={invoiceForm.invoice_date} onChange={e => setInvoiceForm(p => ({ ...p, invoice_date: e.target.value }))} />
+                </FormRow>
+                <FormRow label="Total Weight (kg)">
+                  <input className="input-field" type="number" value={invoiceForm.total_weight_kg} onChange={e => setInvoiceForm(p => ({ ...p, total_weight_kg: e.target.value }))} />
+                </FormRow>
+                <FormRow label="Total Amount (Rs.)">
+                  <input className="input-field" type="number" value={invoiceForm.total_amount} onChange={e => setInvoiceForm(p => ({ ...p, total_amount: e.target.value }))} />
+                </FormRow>
+                <FormRow label="Vehicle No">
+                  <input className="input-field" value={invoiceForm.vehicle_no} onChange={e => setInvoiceForm(p => ({ ...p, vehicle_no: e.target.value }))} />
+                </FormRow>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+                <button className="btn-secondary" onClick={() => setShowAddInvoice(false)}>Cancel</button>
+                <button className="btn-primary" onClick={handleAddSalesInvoice} disabled={!invoiceForm.buyer_name}>Save Invoice</button>
+              </div>
+            </Modal>
+          )}
         </div>
       )}
 

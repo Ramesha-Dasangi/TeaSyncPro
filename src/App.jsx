@@ -21,6 +21,28 @@ import PackagingPage from './pages/PackagingPage';
 import FinancePage from './pages/FinancePage';
 import AdminPage from './pages/AdminPage';
 import { ROLES } from './data/mockData';
+import { api } from './services/api';
+
+const PAGE_ROLES = {
+  dashboard: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.INVENTORY_OFFICER],
+  aeration: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.AERATION_OFFICER],
+  rolling: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.ROLLING_OFFICER, ROLES.AERATION_OFFICER],
+  withering: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.WITHERING_OFFICER, ROLES.ROLLING_OFFICER],
+  drying: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.DRYING_OFFICER],
+  collection: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.COLLECTION_OFFICER, ROLES.SUPPLIER, ROLES.INVENTORY_OFFICER],
+  production: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.WITHERING_OFFICER, ROLES.ROLLING_OFFICER, ROLES.AERATION_OFFICER, ROLES.DRYING_OFFICER, ROLES.INVENTORY_OFFICER],
+  grading: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.GRADING_OFFICER, ROLES.PACKAGING_OFFICER, ROLES.INVENTORY_OFFICER],
+  packaging: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.PACKAGING_OFFICER],
+  inventory: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.INVENTORY_OFFICER],
+  suppliers: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER, ROLES.COLLECTION_OFFICER],
+  employees: [ROLES.ADMIN, ROLES.FACTORY_MANAGER],
+  finance: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER],
+  reports: [ROLES.ADMIN, ROLES.FACTORY_MANAGER, ROLES.FINANCE_OFFICER, ROLES.GRADING_OFFICER],
+  admin: [ROLES.ADMIN],
+  settings: [ROLES.ADMIN],
+  supplier_profile: [ROLES.SUPPLIER],
+  supplier_payments: [ROLES.SUPPLIER],
+};
 
 function App() {
   // view controls which screen is shown: 'landing' | 'login' | 'app'
@@ -63,6 +85,7 @@ function App() {
 
   // clear session - go back to landing page
   const handleLogout = () => {
+    api.logout();
     setUser(null);
     setCurrentPage('dashboard');
     setView('landing');
@@ -78,8 +101,20 @@ function App() {
     return <LoginPage onLogin={handleLogin} onBack={() => setView('landing')} theme={theme} onToggleTheme={toggleTheme} />;
   }
 
-  // render view based on active tab
+  // render view based on active tab with RBAC guard
   const renderPage = () => {
+    const allowed = PAGE_ROLES[currentPage];
+    if (allowed && user?.role && !allowed.includes(user.role)) {
+      return (
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <h3 style={{ color: 'var(--red-400)', marginBottom: 8 }}>403 — Access Denied</h3>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Your role ({user.role}) does not have permission to access this module.
+          </p>
+        </div>
+      );
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;

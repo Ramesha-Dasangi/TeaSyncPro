@@ -4,16 +4,36 @@
 import * as MOCK from '../data/mockData';
 
 const BASE_URL = '/api';
+const TOKEN_KEY = 'teasync_token';
+
+let authToken = typeof window !== 'undefined' ? window.sessionStorage.getItem(TOKEN_KEY) : null;
+
+export function setAuthToken(token) {
+  authToken = token || null;
+  if (typeof window !== 'undefined') {
+    if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
+    else window.sessionStorage.removeItem(TOKEN_KEY);
+  }
+}
 
 async function request(endpoint, options = {}) {
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...options.headers
+    };
+
     const res = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
+      ...options,
+      headers
     });
+
+    if (res.status === 401 || res.status === 403) {
+      const errData = await res.json().catch(() => ({}));
+      console.warn(`[API] Access denied (${res.status}) for ${endpoint}:`, errData.error || res.statusText);
+      return null;
+    }
 
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -223,6 +243,26 @@ export const api = {
     });
   },
 
+  // ─── SALES INVOICES ───────────────────────────────────────
+  async getSalesInvoices() {
+    const data = await request('/sales');
+    return data || [];
+  },
+
+  async createSalesInvoice(invoiceData) {
+    return await request('/sales', {
+      method: 'POST',
+      body: JSON.stringify(invoiceData)
+    });
+  },
+
+  async updateSalesInvoiceStatus(id, payment_status) {
+    return await request(`/sales/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ payment_status })
+    });
+  },
+
   // ─── DASHBOARD SUMMARY ────────────────────────────────────
   async getDashboardSummary() {
     return await request('/dashboard/summary');
@@ -239,12 +279,21 @@ export const api = {
       if (res.status === 401 || res.status === 403 || res.status === 400) {
         return { error: 'Invalid username or password. Please try again.' };
       }
+      if (res.status === 429) {
+        return { error: 'Too many login attempts. Please try again later.' };
+      }
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      return { user: await res.json() };
+      const data = await res.json();
+      if (data?.token) setAuthToken(data.token);
+      return { user: data };
     } catch (err) {
       console.warn('[API] Auth offline, falling back to local users:', err.message);
       return null;
     }
+  },
+
+  logout() {
+    setAuthToken(null);
   }
 };
 

@@ -9,6 +9,7 @@ import {
   PRODUCTION_BATCHES
 } from '../data/mockData';
 import { api } from '../services/api';
+import LotQRCode from '../components/LotQRCode';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 const fmtCur = (n) => `Rs. ${Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
@@ -748,7 +749,10 @@ export default function PackagingPage({ user, onNavigate }) {
             <p style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 16px' }}>Export Packaging Certification</p>
 
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              <QrCode size={90} color="#10b981" />
+              <LotQRCode
+                value={`${labelItem.lot_no}|BATCH-${labelItem.batch_id}|${getGradeName(labelItem.grade_id)}|${labelItem.net_weight_kg}KG|${labelItem.pack_date}`}
+                size={112}
+              />
             </div>
 
             <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', letterSpacing: '1px', color: 'var(--text-primary)', marginBottom: 14 }}>
